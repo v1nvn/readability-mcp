@@ -1,0 +1,5 @@
+<html><head><title>Working with Arrays in TypeScript</title><meta name="description" content="A reference for common array operations in TypeScript."></head><body><main><article><h1>Working with Arrays in TypeScript</h1><p>TypeScript arrays inherit from the built-in <code>Array</code> type. The snippet below shows the two most common ways to create and type an array.</p><pre><code class="language-ts">const numbers: number[] = [1, 2, 3];
+const generic: Array&lt;string&gt; = ['a', 'b'];
+numbers.push(4);</code></pre><p>Use <code>readonly</code> to prevent mutation when handing an array to a consumer that should not change it.</p><pre><code class="language-ts">function first(xs: readonly number[]): number | undefined {
+  return xs[0];
+}</code></pre><h2>Mapping and filtering</h2><p>The instance methods <code>map</code> and <code>filter</code> return new arrays, leaving the original untouched.</p></article></main></body></html>
