@@ -28,6 +28,7 @@ export const outputSchemaShape = {
   diagnostics: z.object({
     extractedNode: z.string().optional(),
     fallbackUsed: z.boolean(),
+    imagesResolved: z.number().int().optional(),
     readerable: z.boolean().optional(),
     removedNodes: z.number().int().optional(),
     sanitization: z

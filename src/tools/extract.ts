@@ -9,7 +9,7 @@ import { ExtractionError, toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { formatPayload } from '../output/format.js';
 import { buildDocument } from '../pipeline/dom.js';
-import { normalizeDocument } from '../pipeline/normalize.js';
+import { normalizeDocument, resolveLazyImages } from '../pipeline/normalize.js';
 import { isReaderable, parseArticle } from '../pipeline/readability.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
@@ -96,6 +96,9 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
 
   // 2. Normalize + selector pruning on the pipeline-owned document.
   const normalizeCounts = normalizeDocument(document);
+  // Resolve lazy-load image placeholders before Readability clones the document
+  // (the clone inherits the corrected src values).
+  const imagesResolved = resolveLazyImages(document);
   applySelectors(document, selectors);
 
   // 3. Readerable guard + Readability parse (parses a private clone).
@@ -190,6 +193,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     documentElementCount,
     extractedNode,
     fallbackUsed,
+    imagesResolved,
     readerable,
     sanitization,
     truncated: false,

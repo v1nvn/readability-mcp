@@ -184,7 +184,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 | QUAL-7 | Anchor (`<a href>`) absolutization | Now | S | turndown rule |
 
 ### QUAL-1 — Lazy-load image resolution  · `Now` · S  ⚡ do first
-- [ ] Implement
+- [x] Implement
 - **What:** In normalize, resolve lazy-load placeholders to the real source before Turndown: `data-src`/`data-original`/`data-lazy-src`/`srcset`, IntersectionObserver-swapped `src`, and responsive-image containers (`<picture><source srcset>` — the real URL often lives on `<source>`, with `<img>` as a placeholder fallback).
 - **Why:** SPAs routinely ship a 1×1 placeholder as `src`; without this, every image in the markdown is broken. Correctness bug dressed as a feature.
 - **Lands at:** `pipeline/normalize.ts` — a `resolveLazyImages(doc)` step after URL absolutization. Precedence: `<source>`/`data-src` → `srcset` largest candidate → known `data-*` attrs → IntersectionObserver-swapped `src`. Count swaps in diagnostics. The resolver is shared with TGT-9 (`extract_images`) — one image-source walker, not two.

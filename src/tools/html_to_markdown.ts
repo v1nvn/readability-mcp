@@ -10,7 +10,7 @@ import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { formatPayload } from '../output/format.js';
 import { buildDocument } from '../pipeline/dom.js';
-import { normalizeDocument } from '../pipeline/normalize.js';
+import { normalizeDocument, resolveLazyImages } from '../pipeline/normalize.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
 import { assembleDiagnostics } from '../policy/diagnostics.js';
@@ -78,6 +78,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
   const documentElementCount = document.querySelectorAll('*').length;
 
   const normalizeCounts = normalizeDocument(document);
+  const imagesResolved = resolveLazyImages(document);
   applySelectors(document, selectors);
 
   // No Readability: convert whatever the (selector-scoped) body holds. The body
@@ -128,6 +129,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     documentElementCount,
     extractedNode: EXTRACTED_NODE,
     fallbackUsed: true,
+    imagesResolved,
     sanitization,
     truncated: false,
     window,

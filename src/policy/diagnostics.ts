@@ -15,6 +15,7 @@ export interface DiagnosticsInput {
   readonly documentElementCount?: number;
   readonly extractedNode?: string;
   readonly fallbackUsed?: boolean;
+  readonly imagesResolved?: number;
   readonly readerable?: boolean;
   readonly sanitization?: SanitizationDiagnostics;
   readonly truncated?: boolean;
@@ -47,6 +48,7 @@ export function assembleDiagnostics(
     readerable: input.readerable,
     extractedNode: input.extractedNode,
     fallbackUsed: input.fallbackUsed ?? false,
+    imagesResolved: input.imagesResolved,
     removedNodes,
     sanitization: input.sanitization,
     truncated: input.truncated ?? false,

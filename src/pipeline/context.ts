@@ -26,6 +26,7 @@ export interface SanitizationDiagnostics {
 export interface Diagnostics {
   readonly extractedNode?: string;
   readonly fallbackUsed: boolean;
+  readonly imagesResolved?: number;
   readonly readerable?: boolean;
   readonly removedNodes?: number;
   readonly sanitization?: SanitizationDiagnostics;
