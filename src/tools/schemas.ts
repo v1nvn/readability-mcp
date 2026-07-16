@@ -84,6 +84,17 @@ export const htmlToMarkdownInputShape = {
 
 export const htmlToMarkdownInputSchema = z.object(htmlToMarkdownInputShape);
 
+// `outline` is a heading-only walk: it needs the rendered HTML and the origin
+// (for link/anchor context only — never fetched). No turndown or extraction
+// knobs apply, so the surface is just the two fields.
+export const outlineInputShape = {
+  html: z.string(),
+  url: z.url().optional(),
+} as const;
+
+export const outlineInputSchema = z.object(outlineInputShape);
+
 export type ExtractInput = z.infer<typeof extractInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
+export type OutlineInput = z.infer<typeof outlineInputSchema>;
 export type Selectors = z.infer<typeof selectorsSchema>;

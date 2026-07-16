@@ -3,12 +3,13 @@
 // `{ isError: true }` without throwing, and every success path's
 // structuredContent must validate against the shared outputSchema.
 
-import { outputSchema } from '../../src/tools/output-schema.js';
+import { outputSchema, outlineOutput } from '../../src/tools/output-schema.js';
 import { extractArticle, extractHandler } from '../../src/tools/extract.js';
 import {
   htmlToMarkdown,
   htmlToMarkdownHandler,
 } from '../../src/tools/html_to_markdown.js';
+import { outlineDocument, outlineHandler } from '../../src/tools/outline.js';
 
 const SPA_HTML =
   '<html><head><title>Post</title></head><body><article><h1>Title</h1>' +
@@ -48,5 +49,23 @@ describe('html_to_markdown tool contracts', () => {
     expect(parsed.content.length).toBeGreaterThan(0);
     expect(parsed.diagnostics.fallbackUsed).toBe(true);
     expect(parsed.diagnostics.extractedNode).toBe('fragment');
+  });
+});
+
+describe('outline tool contracts', () => {
+  it('returns { isError: true } for invalid args and does not throw', () => {
+    // Missing required `html`.
+    const result = outlineHandler({});
+    expect(result.isError).toBe(true);
+  });
+
+  it('validates structuredContent against the outline output schema', () => {
+    const result = outlineDocument({
+      html: '<h1>Title</h1><h2>Section</h2>',
+      url: 'https://x.example/',
+    });
+    expect(result.isError).toBeFalsy();
+    const parsed = outlineOutput.parse(result.structuredContent);
+    expect(parsed.outline.length).toBeGreaterThan(0);
   });
 });

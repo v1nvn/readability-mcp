@@ -90,6 +90,17 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 
 Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, and `url` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
 
+### `outline` — heading pre-check
+
+Returns the document outline (`h1`–`h6` in document order with stable anchor ids) as a cheap "is this worth reading?" / "where's the section about X?" pre-check before paying for full extraction. Runs **no** Readability, Turndown, or sanitization — a pure heading walk over the normalized DOM.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+
+Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an indented-bullet TOC rendered into `content[0].text`, and `metadata = {title?, url?}` (`title` falls back from `<title>` to the first `<h1>`). Anchor precedence: the heading's own `id`, then a descendant permalink's `#fragment`, then a slug of the text (deduped `-1`, `-2`, … for generated slugs only — author ids are kept verbatim).
+
 ## Diagnostics
 
 `structuredContent.diagnostics` exposes: `readerable`, `extractedNode`, `fallbackUsed`, `removedNodes` (element delta vs. the document), `sanitization.{scripts,iframes}` (counted across the **whole** pipeline), and `truncated`.

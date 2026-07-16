@@ -44,3 +44,28 @@ export const outputSchemaShape = {
 export const outputSchema = z.object(outputSchemaShape);
 
 export type StructuredContent = z.infer<typeof outputSchema>;
+
+// Output schema for the `outline` tool. A flat list of headings plus a rendered
+// TOC in `content`; no diagnostics object because the outline walk has no
+// extraction/sanitization stages to report on. Mirrors the shared shape
+// (`schemaVersion` + `content` + `metadata`) so clients can treat all three
+// tools uniformly.
+export const outlineOutputShape = {
+  schemaVersion: z.literal(1),
+  content: z.string(),
+  outline: z.array(
+    z.object({
+      level: z.number().int().min(1).max(6),
+      text: z.string(),
+      anchor: z.string(),
+    }),
+  ),
+  metadata: z.object({
+    title: z.string().optional(),
+    url: z.string().optional(),
+  }),
+} as const;
+
+export const outlineOutput = z.object(outlineOutputShape);
+
+export type OutlineStructuredContent = z.infer<typeof outlineOutput>;

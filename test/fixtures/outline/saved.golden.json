@@ -1,0 +1,37 @@
+[
+  {
+    "anchor": "api-reference",
+    "level": 1,
+    "text": "API Reference"
+  },
+  {
+    "anchor": "auth",
+    "level": 2,
+    "text": "Authentication"
+  },
+  {
+    "anchor": "api-keys",
+    "level": 3,
+    "text": "API Keys"
+  },
+  {
+    "anchor": "rate-limits",
+    "level": 2,
+    "text": "Rate Limits"
+  },
+  {
+    "anchor": "examples",
+    "level": 2,
+    "text": "Examples"
+  },
+  {
+    "anchor": "examples-1",
+    "level": 3,
+    "text": "Examples"
+  },
+  {
+    "anchor": "pagination",
+    "level": 2,
+    "text": "Pagination"
+  }
+]

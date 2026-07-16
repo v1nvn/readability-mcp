@@ -64,7 +64,7 @@ Readability only extracts "the article." Half the web isn't an article.
 | TGT-10 | `normalize_html` mode | Future | S | output option on `html_to_markdown` |
 
 ### TGT-1 — `outline` tool  · `Now` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Returns the document outline — headings (`h1`–`h6`) as a nested list, with anchor ids. No body content.
 - **Why:** Cheap "is this worth reading?" / "where's the section about X?" pre-check before paying for full extraction. LLMs use it to navigate long docs.
 - **Lands at:** New tool `outline({html, url?})`. Reuses `pipeline/dom.ts` + `normalize.ts`; no Readability/Turndown. Output: `structuredContent.outline = [{level, text, anchor}]`.
