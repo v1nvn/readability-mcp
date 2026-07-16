@@ -1,10 +1,3 @@
-// The `outline` tool. A cheap "is this worth reading?" pre-check: a flat walk
-// of h1-h6 in document order with stable anchor ids, no body content. Unlike
-// `extract`/`html_to_markdown` it runs no Readability scoring, Turndown
-// conversion, or DOMPurify sanitization — it reuses only the DOM build and
-// normalize stages so the heading tree matches what the other tools see.
-// `outlineDocument` is the pure fn tests call directly.
-
 import type { ToolHandle } from '../server.js';
 
 import { toErrorResult } from '../errors.js';
@@ -18,9 +11,7 @@ import { outlineInputSchema, outlineInputShape } from './schemas.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-// Indented markdown bullets — one line per heading, nested by depth. The
-// payload is never blank so consumers reading `content[0].text` always see
-// something scannable, even when the document has no headings at all.
+// One line per heading, nested by depth; never blank so content[0].text is always scannable.
 function renderOutlineToc(
   outline: readonly { level: number; text: string }[],
 ): string {
@@ -40,10 +31,6 @@ export function outlineDocument(rawArgs: unknown): CallToolResult {
   normalizeDocument(document);
   const outline = resolveOutline(document);
 
-  // Title cascade mirrors the other tools' first-non-empty-wins: the document's
-  // <title>, then the first <h1>'s text (whitespace-collapsed), else absent.
-  // Element.textContent and document.title are non-null in the DOM types, so
-  // the only optional chain is querySelector (which can return null).
   const title =
     document.title.trim() ||
     document.querySelector('h1')?.textContent.replace(/\s+/g, ' ').trim() ||
@@ -64,7 +51,6 @@ export function outlineDocument(rawArgs: unknown): CallToolResult {
 
 export const OUTLINE_TOOL_DESCRIPTION = `Return the document outline (h1-h6 headings with stable anchor ids) of already-rendered (post-JavaScript) HTML as a cheap pre-check before full extraction. No Readability scoring, no Turndown, no sanitization — a pure heading walk. The server fetches nothing: \`html\` is the only source, and \`url\` is origin context only (never fetched).`;
 
-// Exported handler so contract tests can call it directly.
 export function outlineHandler(args: unknown): CallToolResult {
   try {
     return outlineDocument(args);

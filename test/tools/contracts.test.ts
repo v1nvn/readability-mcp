@@ -1,8 +1,3 @@
-// Tool contract tests (DESIGN §9): the isError path and the structuredContent
-// contract for BOTH tools. The handler must convert an unsalvageable input into
-// `{ isError: true }` without throwing, and every success path's
-// structuredContent must validate against the shared outputSchema.
-
 import { outputSchema, outlineOutput } from '../../src/tools/output-schema.js';
 import { extractArticle, extractHandler } from '../../src/tools/extract.js';
 import {
@@ -34,7 +29,6 @@ describe('extract tool contracts', () => {
 
 describe('html_to_markdown tool contracts', () => {
   it('returns { isError: true } for invalid args and does not throw', () => {
-    // Missing required `html`.
     const result = htmlToMarkdownHandler({});
     expect(result.isError).toBe(true);
   });
@@ -54,7 +48,6 @@ describe('html_to_markdown tool contracts', () => {
 
 describe('outline tool contracts', () => {
   it('returns { isError: true } for invalid args and does not throw', () => {
-    // Missing required `html`.
     const result = outlineHandler({});
     expect(result.isError).toBe(true);
   });

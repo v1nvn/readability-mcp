@@ -1,14 +1,6 @@
-// Metadata cascade (DESIGN §6.1). Each metadata field is resolved by priority:
-//   JSON-LD → OpenGraph → Twitter → <meta>/<time> → Readability → <title>
-// The first non-empty value wins. Sources are read from the pipeline-owned,
-// normalized document (before the Readability clone), so the structured-metadata
-// layers (JSON-LD/OG/Twitter) — which Readability discards — still surface.
-// Readability's values then fill any gaps, and `<title>` is the final fallback.
-
 import type { Metadata } from '../pipeline/context.js';
 import type { ReadabilityParseResult } from '../pipeline/readability.js';
 
-// Article-ish schema.org types whose fields we trust for article metadata.
 const ARTICLE_TYPES = new Set([
   'Article',
   'BlogPosting',
@@ -26,13 +18,10 @@ interface JsonLdObject {
   readonly [key: string]: JsonLdValue;
 }
 
-// A line that is harmless but real (e.g. empty string vs absent). We treat
-// whitespace-only strings as empty throughout the cascade.
 function nonEmpty(value: string | undefined): string | undefined {
   return value?.trim() ? value : undefined;
 }
 
-// First non-empty value in priority order.
 function first(...values: readonly (string | undefined)[]): string | undefined {
   for (const value of values) {
     const picked = nonEmpty(value);
@@ -43,7 +32,6 @@ function first(...values: readonly (string | undefined)[]): string | undefined {
   return undefined;
 }
 
-// --- <meta> helpers -------------------------------------------------------
 function metaProperty(
   document: Document,
   property: string,
@@ -62,11 +50,8 @@ function metaName(document: Document, name: string): string | undefined {
   );
 }
 
-// --- JSON-LD helpers ------------------------------------------------------
-// Flatten every <script type="application/ld+json"> into candidate objects.
-// A single script may hold an array or a `@graph` array; both unwrap. Invalid
-// JSON is skipped silently — it is not article metadata and must never crash
-// extraction.
+// Flatten ld+json scripts (a script may hold an array or a @graph array).
+// Invalid JSON is skipped — never crash extraction over malformed metadata.
 function parseJsonLd(document: Document): JsonLdObject[] {
   const nodes = document.querySelectorAll('script[type="application/ld+json"]');
   const out: JsonLdObject[] = [];
@@ -96,9 +81,8 @@ function collectObjects(value: JsonLdValue, out: JsonLdObject[]): void {
     }
     return;
   }
-  // A @graph holds the real subjects when the wrapper is a context binding.
-  // `in` guards the access because the index signature types values as
-  // JsonLdValue (no `undefined`), so a `!== undefined` check has no overlap.
+  // `in` guard: the index signature types values as JsonLdValue (no undefined),
+  // so a `!== undefined` check has no overlap.
   if ('@graph' in value) {
     collectObjects(value['@graph'], out);
   }
@@ -110,8 +94,6 @@ function typeMatches(type: JsonLdValue): boolean {
   return types.some(t => typeof t === 'string' && ARTICLE_TYPES.has(t));
 }
 
-// Prefer an explicitly article-typed node; fall back to the first node so a
-// page with only a bare WebPage/Thing still yields its headline/description.
 function pickArticleNode(
   candidates: readonly JsonLdObject[],
 ): JsonLdObject | undefined {
@@ -121,8 +103,8 @@ function pickArticleNode(
   return candidates.find(node => typeMatches(node['@type'])) ?? candidates[0];
 }
 
-// Authors can be a string, a Person/ Organization object, an array of either,
-// or a {@list: [...]} container. Reduce to a comma-joined byline string.
+// Author may be a string, a Person/Organization object, an array, or a
+// {@list: [...]} container; reduce to a comma-joined byline.
 function resolveJsonLdAuthor(author: JsonLdValue): string | undefined {
   const names: string[] = [];
   function visit(value: JsonLdValue): void {
@@ -140,7 +122,7 @@ function resolveJsonLdAuthor(author: JsonLdValue): string | undefined {
       value.forEach(visit);
       return;
     }
-    // {@list: [...]} uses an array wrapper for ordering; unwrap it.
+    // {@list: [...]} is an ordering wrapper; unwrap it.
     const list = value['@list'];
     if (Array.isArray(list)) {
       list.forEach(visit);
@@ -162,8 +144,6 @@ function asString(value: JsonLdValue | undefined): string | undefined {
   return typeof value === 'string' ? nonEmpty(value) : undefined;
 }
 
-// Index a nested JSON-LD value only when it is itself an object; primitives and
-// arrays have no string-keyed fields, so return undefined rather than casting.
 function field(
   obj: JsonLdValue | undefined,
   key: string,
@@ -175,7 +155,6 @@ function field(
 }
 
 export interface MetadataInput {
-  // Pipeline-owned, normalized document (pre-Readability clone).
   readonly document: Document;
   readonly readability?: null | ReadabilityParseResult;
   readonly readingTimeMin: number;
@@ -187,7 +166,6 @@ export interface MetadataInput {
 export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
   const { document, readability } = input;
 
-  // --- document-side tiers (JSON-LD → OG → Twitter → meta/time) ---
   const jsonLd = pickArticleNode(parseJsonLd(document));
   const htmlLang = nonEmpty(
     document.documentElement.getAttribute('lang') ?? undefined,
@@ -224,8 +202,7 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
   const publishedTime = first(
     asString(jsonLd?.datePublished),
     metaProperty(document, 'article:published_time'),
-    // First <time datetime> in the document is the canonical publish timestamp
-    // for article templates that render it inline in the byline.
+    // First <time datetime> is the canonical publish time when rendered inline.
     nonEmpty(
       document.querySelector('time[datetime]')?.getAttribute('datetime') ??
         undefined,

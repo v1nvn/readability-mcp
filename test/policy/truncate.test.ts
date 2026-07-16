@@ -1,8 +1,3 @@
-// Block-boundary truncation contract tests (DESIGN §5.1/§9). The invariant:
-// when `maxChars` forces a cut, the cut lands at a block boundary and NEVER
-// inside a fenced code block — the output contains an even number of ```
-// delimiters (the fence is intact-or-absent, never half-open).
-
 import { truncateMarkdown } from '../../src/policy/truncate.js';
 
 import { extractArticle } from '../../src/tools/extract.js';
@@ -24,7 +19,6 @@ describe('policy.truncate', () => {
     const res = truncateMarkdown(md, '# Title\n\nFirst paragraph.'.length + 5);
     expect(res.truncated).toBe(true);
     expect(res.text).toMatch(/…\[truncated\]$/);
-    // The boundary landed between paragraphs, not mid-word.
     expect(res.text).toContain('First paragraph.');
     expect(res.text).not.toContain('Second paragraph.');
   });
@@ -39,17 +33,13 @@ describe('policy.truncate', () => {
       '```',
     ].join('\n');
     const md = `# Title\n\nIntro paragraph.\n\n${codeBlock}\n\nTrailing paragraph.`;
-    // Budget sized so a naive char-cut would land inside the code block:
-    // it comfortably fits the intro but cannot fit the full code block.
     const cutAfter = '# Title\n\nIntro paragraph.';
 
     const res = truncateMarkdown(md, cutAfter.length + codeBlock.length - 10);
 
     expect(res.truncated).toBe(true);
     expect(res.text).toMatch(/…\[truncated\]$/);
-    // Fence count must be even (0 here — the whole code block is excluded).
     expect(fenceCount(res.text) % 2).toBe(0);
-    // And no code interior leaked past the boundary.
     expect(res.text).not.toContain('const two');
   });
 
@@ -59,7 +49,6 @@ describe('policy.truncate', () => {
     const res = truncateMarkdown(md, `# Title\n\n${codeBlock}`.length + 4);
 
     expect(res.truncated).toBe(true);
-    // The code block survived intact → exactly two fence delimiters.
     expect(fenceCount(res.text)).toBe(2);
     expect(res.text).toContain('const x = 1;');
     expect(res.text).not.toContain('trailing');
@@ -74,8 +63,6 @@ describe('policy.truncate', () => {
   });
 });
 
-// Integration through the real tool: diagnostics.truncated must reflect the cut,
-// and the contract (even fence count, no dangling ```) holds on the payload.
 describe('extract truncation contract', () => {
   it('sets diagnostics.truncated and never leaves a half-open fence', () => {
     const html =

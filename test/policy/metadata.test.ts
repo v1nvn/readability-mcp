@@ -1,7 +1,3 @@
-// Metadata cascade unit tests (DESIGN §6.1). Priority per field:
-// JSON-LD → OpenGraph → Twitter → <meta>/<time> → Readability → <title>.
-// First non-empty value wins.
-
 import { buildDocument } from '../../src/pipeline/dom.js';
 import type { ReadabilityParseResult } from '../../src/pipeline/readability.js';
 import { resolveMetadata } from '../../src/policy/metadata.js';

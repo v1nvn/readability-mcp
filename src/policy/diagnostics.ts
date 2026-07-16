@@ -1,9 +1,3 @@
-// Assemble the Diagnostics object from stage outputs (DESIGN §5.1, §6.1).
-// `fallbackUsed` / `truncated` are decided by the caller (the selector cascade
-// and the truncation step) and passed in; this module only shapes the object.
-// `removedNodes` is the element-delta between the document and the extracted
-// article HTML — the "noise Readability stripped" signal.
-
 import type {
   Diagnostics,
   SanitizationDiagnostics,
@@ -26,7 +20,6 @@ function countElements(html: string, window?: Window): number {
   if (!window || !html) {
     return 0;
   }
-  // Parse the article fragment in the same window to count its element nodes.
   const template = window.document.createElement('div');
   template.innerHTML = html;
   return template.querySelectorAll('*').length;

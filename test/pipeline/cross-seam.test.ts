@@ -1,11 +1,3 @@
-// Cross-seam + per-module regression tests (DESIGN §9).
-//
-// The cross-seam test feeds a *non-degenerate* post-JS SPA (a real table +
-// fenced code + a relative <img>) end-to-end and asserts each stage's contract
-// holds across the boundary: content survives, the relative image src is
-// absolutized against `url`, the table renders as GFM, and the code block
-// renders fenced. This is the project's load-bearing risk surface (DESIGN §11).
-
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,17 +33,11 @@ describe('cross-seam: SPA end-to-end', () => {
     const text = payloadText(result);
     expect(text.length).toBeGreaterThan(500);
 
-    // jsdom was given `url`; Readability must resolve the relative <img src>.
     expect(text).toContain('https://example.com/static/architecture.png');
 
-    // GFM table survives: header row + separator row.
     expect(text).toContain('| Strategy');
     expect(text).toMatch(/\|\s+---/);
 
-    // Fenced code block survives with its language tag intact. Readability
-    // normally strips class attributes (keepClasses:false), which would drop the
-    // `language-tsx` class and yield a bare ``` fence; classesToPreserve in the
-    // resolver keeps highlight.js/prism language tokens, so the fence is ```tsx.
     expect(text).toMatch(/```tsx/);
     expect(text).toContain('getDerivedStateFromError');
 

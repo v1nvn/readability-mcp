@@ -1,6 +1,3 @@
-// Turndown image-mode unit tests (DESIGN §5.1 `images` option). Covers the
-// keep/drop (existing) and the Phase C src-only/reference renderings.
-
 import { toMarkdown } from '../../src/pipeline/turndown.js';
 
 const pageUrl = 'https://example.com/page';

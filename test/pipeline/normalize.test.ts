@@ -1,7 +1,3 @@
-// Focused unit tests for `resolveLazyImages` (QUAL-1). The cross-seam suite
-// covers `normalizeDocument` itself; this file exercises each precedence branch
-// and the placeholder-detection heuristic in isolation.
-
 import { buildDocument } from '../../src/pipeline/dom.js';
 import { resolveLazyImages } from '../../src/pipeline/normalize.js';
 

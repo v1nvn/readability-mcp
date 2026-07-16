@@ -1,8 +1,3 @@
-// The `extract` tool (DESIGN §5.1). `extractArticle` is a pure function the
-// golden/cross-seam tests call directly; `registerExtractTool` is the thin
-// McpServer wiring that delegates to it and converts thrown errors to
-// `{ isError: true }` results so nothing ever throws across the wire.
-
 import type { SanitizationDiagnostics } from '../pipeline/context.js';
 import type { ToolHandle } from '../server.js';
 
@@ -25,22 +20,13 @@ import { extractInputSchema, extractInputShape } from './schemas.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-// Names the extraction PATH (Readability's main scorer produced content), not a
-// DOM tag. Readability does not expose which source node it picked as its top
-// candidate, so claiming an `<article>` element exists would be dishonest —
-// pages with no `<article>` tag (HN, example.com) previously reported "article".
-// The fallback path instead names a real selector (`main`/`[role=main]`/`body`),
-// and `html_to_markdown` reports "fragment"; all three are "where the content
-// came from" labels.
+// Names the extraction path, not a DOM tag — Readability doesn't expose the source node.
 const EXTRACTED_NODE = 'readability';
 
 function countWords(text: string): number {
   return (text.match(/\S+/g) ?? []).length;
 }
 
-// Apply optional selector pruning before Readability. `exclude` drops matched
-// boilerplate nodes; `include` scopes the document body to the matched subtree
-// so Readability only scores inside it.
 function applySelectors(
   document: Document,
   selectors:
@@ -58,8 +44,6 @@ function applySelectors(
     }
   }
   if (selectors.include) {
-    // buildDocument always parses a full document with a <body>, so the
-    // non-null assertion is structural rather than hopeful.
     const body = document.body;
     const root = body.querySelector(selectors.include);
     if (root && root !== body) {
@@ -91,18 +75,13 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     wordsPerMinute,
   } = args;
 
-  // 1. Build the DOM with `url` so Readability can absolutize relative links.
   const { document, window } = buildDocument(html, url);
   const documentElementCount = document.querySelectorAll('*').length;
 
-  // 2. Normalize + selector pruning on the pipeline-owned document.
   const normalizeCounts = normalizeDocument(document);
-  // Resolve lazy-load image placeholders before Readability clones the document
-  // (the clone inherits the corrected src values).
   const imagesResolved = resolveLazyImages(document);
   applySelectors(document, selectors);
 
-  // 3. Readerable guard + Readability parse (parses a private clone).
   const readerable = isReaderable(document);
   const readabilityOptions = resolveReadabilityOptions({
     extraction,
@@ -113,9 +92,6 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   });
   const article = parseArticle(document, readabilityOptions);
 
-  // 4. Extraction: main article path, or the selector cascade on parse failure.
-  // Trust Readability when parse() returns content even if isProbablyReaderable
-  // was false — cascade ONLY on parse failure (refinement of DESIGN §5.1).
   let markdown: string;
   let sanitizedHtml: string;
   let textContent: string;
@@ -147,6 +123,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       url,
     });
   } else {
+    // Cascade only on parse failure, not on isProbablyReaderable.
     const fallback = extractViaFallback(document, {
       codeBlockStyle,
       gfm,
@@ -169,8 +146,6 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     sanitizeCounts = fallback.sanitization;
   }
 
-  // 5. Metadata cascade + reading-time math. Resolved against the normalized
-  //    document so JSON-LD/OG/Twitter layers surface; Readability fills gaps.
   const wordCount = countWords(textContent);
   const readingTimeMin =
     wordCount === 0 ? 0 : Math.max(1, Math.round(wordCount / wordsPerMinute));
@@ -183,8 +158,6 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     wordCount,
   });
 
-  // 6. Diagnostics. Sanitization counts span the whole pipeline: scripts/iframes
-  //    dropped by normalize plus those dropped by DOMPurify on the article HTML.
   const sanitization: SanitizationDiagnostics = {
     iframes: normalizeCounts.iframes + sanitizeCounts.iframes,
     scripts: normalizeCounts.scripts + sanitizeCounts.scripts,
@@ -201,9 +174,6 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     window,
   });
 
-  // 7. Render the text payload (json format embeds diagnostics verbatim), then
-  //    apply the length budget (markdown/text only) at a block boundary — never
-  //    inside a fenced code block.
   let payload = formatPayload({
     diagnostics: baseDiagnostics,
     format,
@@ -237,13 +207,10 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
 
 export const EXTRACT_TOOL_DESCRIPTION = `Extract the main article from already-rendered (post-JavaScript) HTML and return clean Markdown plus metadata and diagnostics. The server fetches nothing: \`html\` is the only source, and \`url\` (optional) is used solely to absolutize relative links. Hand it the output of \`document.documentElement.outerHTML\` from a browser/devtools capture.`;
 
-// The tool handler closure, exported so contract tests can exercise the
-// isError path (and structuredContent shape) without spinning up an McpServer.
 export function extractHandler(args: unknown): CallToolResult {
   try {
     return extractArticle(args);
   } catch (err) {
-    // Never throw across the wire; surface a structured error result.
     logger.error(
       `extract failed: ${err instanceof Error ? err.message : String(err)}`,
     );

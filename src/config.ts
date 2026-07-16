@@ -1,9 +1,3 @@
-// Server identity + configuration entry point.
-//
-// MCP reserves stdout for JSON-RPC, so nothing here may print to stdout.
-// Env overrides use the READABILITY_MCP_* namespace; only identity is wired
-// in Phase A — later phases extend ServerConfig with extraction/policy knobs.
-
 export interface ServerConfig {
   readonly logLevel: LogLevel;
   readonly name: 'readability-mcp';
@@ -38,8 +32,7 @@ function resolveLogLevel(env: NodeJS.ProcessEnv): LogLevel {
   return DEFAULT_LOG_LEVEL;
 }
 
-// Hardcoded for Phase A to avoid bundler/JSON-import-attribute churn; tracks
-// package.json `version`. Bump both together at release.
+// Tracks package.json `version` — bump both together at release.
 const SERVER_VERSION = '0.1.0';
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {

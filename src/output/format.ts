@@ -1,15 +1,3 @@
-// Render the text payload (DESIGN §5.1). The format selects what becomes
-// `content[0].text`:
-//   - markdown: turndown output, with the article title prepended as `#`.
-//   - html:     sanitized article HTML.
-//   - text:     plain textContent.
-//   - json:     pretty JSON of { metadata, content, diagnostics } — the one
-//               case where JSON-in-text is intentional.
-// `metadataMode` prepends a YAML or JSON frontmatter block to the markdown/text
-// payload (none = plain). `structuredContent.metadata` is always present
-// regardless of `metadataMode`, so this is purely a rendering convenience for
-// the human/LLM-readable text.
-
 import type { Diagnostics, Metadata } from '../pipeline/context.js';
 
 export type Format = 'html' | 'json' | 'markdown' | 'text';
@@ -31,11 +19,8 @@ interface JsonObject {
   readonly metadata: Metadata;
 }
 
-// Readability demotes the article's <h1> to <h2> inside `content` and mirrors
-// its text into `article.title`. So the turndown body opens with "## <title>"
-// right after we prepend "# <title>". Drop that echoed sub-heading so the
-// article's title is printed exactly once, as the document's sole top-level
-// heading.
+// Readability demotes the article <h1> to <h2> inside `content` and mirrors its
+// text into the title; drop the echoed sub-heading so the title prints once.
 function dropEchoedTitle(body: string, title: string): string {
   const lines = body.split('\n');
   const first = lines[0];
@@ -60,8 +45,6 @@ function renderMarkdown(input: Readonly<FormatInput>): string {
   return body.replace(/\n+$/, '\n');
 }
 
-// Double-quote string scalars so YAML frontmatter is always well-formed
-// regardless of the value (handles colons, leading '#', quotes, etc.).
 function yamlScalar(value: number | string): string {
   if (typeof value === 'number') {
     return String(value);
@@ -73,7 +56,7 @@ function yamlScalar(value: number | string): string {
   return `"${escaped}"`;
 }
 
-// Stable key order so frontmatter output is deterministic across Node versions.
+// Stable key order for deterministic frontmatter.
 const METADATA_KEYS: readonly (keyof Metadata)[] = [
   'title',
   'byline',
@@ -110,8 +93,6 @@ function jsonFrontmatter(metadata: Readonly<Metadata>): string {
   return '```json\n' + JSON.stringify(picked, null, 2) + '\n```\n';
 }
 
-// Prepend the chosen frontmatter block to a text-ish payload. Only applies to
-// markdown/text — html is raw markup and json already carries metadata.
 function withFrontmatter(
   payload: string,
   mode: MetadataMode,

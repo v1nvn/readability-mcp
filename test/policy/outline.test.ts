@@ -1,6 +1,3 @@
-// resolveOutline unit tests. Pure DOM walk over a normalized document;
-// mirrors metadata.test.ts with a `doc(html)` helper.
-
 import { buildDocument } from '../../src/pipeline/dom.js';
 import { resolveOutline } from '../../src/policy/outline.js';
 
@@ -37,7 +34,6 @@ describe('policy.outline resolveOutline', () => {
   });
 
   it('falls back to a slug of the text when no id or anchor link is present', () => {
-    // "!" is deleted by the slug charset, internal whitespace -> single dash.
     const html = '<h2>Getting Started!</h2>';
     expect(resolveOutline(doc(html))).toEqual([
       { level: 2, text: 'Getting Started!', anchor: 'getting-started' },
@@ -62,7 +58,6 @@ describe('policy.outline resolveOutline', () => {
   });
 
   it('strips a trailing permalink # from the heading text', () => {
-    // No anchor link here, so the slug is derived from the cleaned text.
     const html = '<h3>Title#</h3>';
     expect(resolveOutline(doc(html))).toEqual([
       { level: 3, text: 'Title', anchor: 'title' },
@@ -77,9 +72,6 @@ describe('policy.outline resolveOutline', () => {
   });
 
   it('uses an explicit id verbatim and does NOT suffix it on collision', () => {
-    // First and third headings carry the same explicit id; the middle heading
-    // slug-collides with it. Author ids stay verbatim; only generated slugs
-    // get the -N suffix.
     const html =
       '<h2 id="section">First</h2><h2>Section</h2><h2 id="section">Third</h2>';
     expect(resolveOutline(doc(html))).toEqual([

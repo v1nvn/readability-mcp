@@ -1,26 +1,18 @@
-// Document outline resolver. A flat walk of h1-h6 in document order, producing
-// stable, unique anchor ids. Anchor precedence (first non-empty wins): the
-// heading's own id, then the fragment of a descendant permalink anchor, then a
-// slug derived from the text. Author-supplied ids/fragments are kept verbatim
-// (never suffixed); only generated slugs are de-duplicated with a -N suffix.
-
 export interface OutlineEntry {
   readonly anchor: string;
   readonly level: number;
   readonly text: string;
 }
 
-// Collapse internal whitespace runs to a single space, trim, then strip any
-// leading/trailing `#` (GitHub permalinks append `<a ...>#</a>`, so the heading
-// textContent ends with `#`). Re-trim in case the strip exposes new edges.
+// Collapse whitespace, trim, then strip leading/trailing `#` (GitHub permalinks
+// append `<a>#</a>`, so heading textContent ends with `#`).
 function normalizeText(raw: string): string {
   const collapsed = raw.replace(/\s+/g, ' ').trim();
   return collapsed.replace(/^#+|#+$/g, '').trim();
 }
 
-// lowercase -> whitespace runs to single `-` -> drop non-[a-z0-9-] -> collapse
-// repeated `-` -> trim edge `-`. An all-symbol heading yields an empty slug,
-// which falls back to the literal `section` so anchors are always non-empty.
+// An all-symbol heading yields an empty slug; fall back to `section` so anchors
+// are always non-empty.
 function slugify(text: string): string {
   const slashed = text.toLowerCase().replace(/\s+/g, '-');
   const cleaned = slashed.replace(/[^a-z0-9-]/g, '');
@@ -28,9 +20,7 @@ function slugify(text: string): string {
   return collapsed || 'section';
 }
 
-// First descendant <a> whose href starts with `#` and yields a non-empty
-// fragment. `href="#"` (empty fragment) does not win — the heading falls through
-// to slugify instead of adopting a blank anchor.
+// `href="#"` (empty fragment) does not win — fall through to slugify.
 function linkAnchor(heading: Element): string | undefined {
   for (const link of heading.querySelectorAll('a[href^="#"]')) {
     const href = link.getAttribute('href');
@@ -45,8 +35,6 @@ function linkAnchor(heading: Element): string | undefined {
   return undefined;
 }
 
-// Resolve the candidate anchor and whether it is author-supplied (verbatim) or
-// generated (subject to de-duplication).
 function resolveCandidate(
   heading: Element,
   text: string,
@@ -62,9 +50,8 @@ function resolveCandidate(
   return { anchor: slugify(text), explicit: false };
 }
 
-// Explicit anchors are returned verbatim (author ids are not rewritten).
-// Generated slugs collide-suffixed GitHub-style: first occurrence stays bare,
-// the next collision takes `-1`, then `-2`, and so on.
+// Explicit anchors are kept verbatim; generated slugs are collision-suffixed
+// (`-1`, `-2`, …), first occurrence bare.
 function dedupe(
   candidate: string,
   explicit: boolean,

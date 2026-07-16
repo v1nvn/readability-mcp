@@ -1,5 +1,3 @@
-// turndown-plugin-gfm ships no types. It exports a plugin function per the
-// TurndownService plugin contract: `(service: TurndownService) => void`.
 declare module 'turndown-plugin-gfm' {
   import type TurndownService from 'turndown';
 

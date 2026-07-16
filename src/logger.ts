@@ -1,6 +1,3 @@
-// Stderr-only logger. MCP owns stdout for JSON-RPC, so every line goes to
-// process.stderr to avoid corrupting the protocol stream.
-
 import { levelEnabled, loadConfig, type LogLevel } from './config.js';
 
 type Writer = (message: string) => void;
@@ -56,7 +53,6 @@ class Logger {
   }
 }
 
-// Config is resolved once at import time; the server has no need to mutate it.
 const activeConfig = loadConfig();
 
 export const logger = new Logger();

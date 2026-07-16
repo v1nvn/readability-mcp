@@ -1,12 +1,12 @@
 # Comment hygiene
 
-Comments explain *why*, not *what*.
+Comments explain *why*, not *what*. The default is no comment. Write one only when it clears the bar below — author to this standard so redundant commentary never gets added in the first place, not cleaned up later.
 
-- Don't restate code the reader can already see. `currentSection = null; // reset section` and `// get all inputs` over a block of `core.getInput(...)` are noise — delete them.
-- Don't reference deleted or external documents inline. Tags like `PLAN.md §4`, `D6`, `Option B`, `req 5`, or `the oracle` only mean something while that doc exists; once it's gone the comment dangles. A comment must stand on its own — if the doc is removed, drop the pointer or inline the rationale it pointed at.
-- Prefer clear names and types over a comment. When you do comment, capture intent, invariants, and non-obvious decisions only.
+- Never write a comment that restates code the reader can already see: module-summary headers, numbered step walkthroughs, `x = null; // reset x`. If a name or type doesn't carry the intent, fix the name or type — don't paper over it with a comment.
+- Never reference markdown or docs from a code comment — no `DESIGN §4`, `PLAN.md`, `§9`, `see README`, or phase/ID tags (`Phase A`, `QUAL-1`). Rationale must live in the comment itself or not at all; a pointer dangles the moment its doc changes.
+- Add a comment only when its absence would mislead a future reader: a non-obvious invariant, a subtle cross-layer contract, or a "why" that prevents a bug. If you can't point to that, the comment doesn't get written.
+- `eslint-disable` / `@ts-*` pragmas are functional, not commentary.
 
 - Use TODO.md to track issues, features and all progress.
-- Mark a task doneonly when `npm run typecheck && npm run lint:fix` is successful. 
-- Alwasys do things cleanly, never put band-aids or hacks.
-- Only add comments when absolutely required, never add comments that explain code or refer to a temp doc.
+- Mark a task done only when `npm run typecheck && npm run lint:fix` is successful.
+- Always do things cleanly — no band-aids or hacks.

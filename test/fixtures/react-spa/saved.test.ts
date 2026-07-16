@@ -1,8 +1,3 @@
-// Golden test for the motivating SPA fixture (DESIGN §9). Feeds the post-JS
-// outerHTML capture through `extractArticle` and pins the rendered Markdown so
-// extraction-quality regressions surface as text drift. Run with
-// UPDATE_GOLDENS=1 to regenerate the golden after an intentional change.
-
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

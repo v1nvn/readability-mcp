@@ -1,6 +1,3 @@
-// Minimal ambient declarations for jsdom (ships no bundled types and no
-// @types/jsdom is installed). Typed to the surface this project uses; the DOM
-// lib's `Document`/`Window` describe the runtime objects jsdom produces.
 declare module 'jsdom' {
   export interface JSDOMOptions {
     readonly contentType?: string;

@@ -1,8 +1,3 @@
-// End-to-end check for QUAL-1 lazy-image resolution. Feeds a synthetic fixture
-// (a data-src placeholder + a <picture><source srcset> container) through the
-// `html_to_markdown` tool and asserts the count is threaded into diagnostics
-// and the real URLs surface in the rendered Markdown.
-
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

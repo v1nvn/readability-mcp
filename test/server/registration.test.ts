@@ -1,13 +1,3 @@
-// Contract test for the tool-registration split that hot reload depends on.
-//
-// Reload swaps tools on a single long-lived McpServer by `.remove()`-ing the
-// previous handles and re-registering a fresh batch. These tests lock the
-// observable contract over the real protocol (a Client driving `tools/list`
-// through a linked in-memory transport), not private SDK state: the server
-// advertises exactly the registered tools, removal hides them, and
-// re-registration after removal is clean — the exact sequence `src/dev.ts`
-// runs on each file change.
-
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
@@ -23,9 +13,6 @@ interface LoopbackTransport {
   close(): Promise<void>;
 }
 
-// Back-to-back transport pair: each side's send() delivers to the other's
-// onmessage. Mirrors the SDK's InMemoryTransport without depending on its
-// (non-exported) subpath.
 function linkedTransports(): [LoopbackTransport, LoopbackTransport] {
   let a: LoopbackTransport;
   let b: LoopbackTransport;
@@ -46,9 +33,6 @@ function linkedTransports(): [LoopbackTransport, LoopbackTransport] {
   return [a, b];
 }
 
-// Connect a server to a fresh Client over a loopback pair. Registration happens
-// after connecting — the SDK's handlers read live registrations, so order is
-// irrelevant.
 async function connect(server: ReturnType<typeof createMcpServer>): Promise<{
   client: Client;
   close: () => Promise<void>;
@@ -105,8 +89,6 @@ describe('tool registration', () => {
     for (const handle of handles) {
       handle.remove();
     }
-    // The capability/handler init from the first registration is idempotent, so
-    // re-registering on the connected server is exactly what dev reload does.
     registerTools(server);
     expect(await listTools(client)).toEqual([
       'extract',

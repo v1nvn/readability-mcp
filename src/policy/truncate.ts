@@ -1,22 +1,10 @@
-// Block-boundary truncation (DESIGN §5.1/§9). When `maxChars` is set the payload
-// is cut at a block boundary — NEVER inside a fenced code block.
-//
-// Algorithm: split the payload into fence-aware blocks (a block is a run of
-// consecutive non-blank lines, where blank lines INSIDE an open code fence stay
-// with the block). Accumulate blocks while they fit; when the next block would
-// exceed `maxChars`, stop. Because fenced blocks are atomic, the cut can never
-// land inside one — but as a belt-and-suspenders guard, if the accumulated text
-// somehow ends with an odd number of fence delimiters (indented fence the
-// detector missed, malformed input), roll the cut back to before that fence
-// opened. Append a clear truncation marker.
-
 export interface TruncateResult {
   readonly text: string;
   readonly truncated: boolean;
 }
 
 // A fence delimiter opens or closes a CommonMark fenced code block: 0-3 spaces
-// of indentation followed by ``` or ~~~ (3+). Turndown always emits backticks.
+// of indentation followed by ``` or ~~~ (3+).
 const FENCE_DELIMITER = /^[ ]{0,3}(`{3,}|~{3,})/;
 
 function isFenceDelimiter(line: string): boolean {
@@ -27,8 +15,6 @@ interface SplitBlock {
   readonly text: string;
 }
 
-// Split into fence-aware blocks. Blank lines outside a fence separate blocks;
-// blank lines inside a fence are kept (they belong to the code block).
 function splitBlocks(markdown: string): SplitBlock[] {
   const lines = markdown.split('\n');
   const blocks: SplitBlock[] = [];
@@ -58,7 +44,6 @@ function splitBlocks(markdown: string): SplitBlock[] {
   return blocks;
 }
 
-// Count fence delimiters in the accumulated text; odd ⇒ an open fence.
 function endsInsideOpenFence(text: string): boolean {
   let fences = 0;
   for (const line of text.split('\n')) {
@@ -69,8 +54,6 @@ function endsInsideOpenFence(text: string): boolean {
   return fences % 2 !== 0;
 }
 
-// Remove the trailing partial fence block: cut everything from the last
-// fence-delimiter line onward so no ``` is left dangling.
 function rollBackOpenFence(text: string): string {
   const lines = text.split('\n');
   for (let i = lines.length - 1; i >= 0; i -= 1) {
@@ -83,6 +66,9 @@ function rollBackOpenFence(text: string): string {
 
 const TRUNCATION_MARKER = '\n\n…[truncated]';
 
+// Cuts at a block boundary; fenced blocks are atomic so the cut never lands
+// inside one. If the accumulated text still ends inside an open fence, roll
+// back to before it opened.
 export function truncateMarkdown(
   markdown: string,
   maxChars: number,
@@ -106,8 +92,6 @@ export function truncateMarkdown(
   }
 
   if (!truncated) {
-    // Every block fit (can happen when maxChars sits between block boundaries
-    // and total length); nothing to do.
     return { text: markdown, truncated: false };
   }
 
@@ -115,7 +99,6 @@ export function truncateMarkdown(
   if (endsInsideOpenFence(text)) {
     text = rollBackOpenFence(text);
   }
-  // Trim trailing whitespace so the marker sits on its own paragraph, then append.
   text = text.replace(/\s+$/, '');
   return { text: text + TRUNCATION_MARKER, truncated: true };
 }

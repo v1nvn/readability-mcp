@@ -1,16 +1,8 @@
-// Dev-only entry: in-process hot reload of tool implementations without
-// restarting the process or dropping the MCP client connection.
-//
-// The stdio transport and the McpServer are single-use under the MCP SDK
-// (`StdioServerTransport.start()` throws on a second call; `Protocol.connect()`
-// calls it), so they are created exactly once and live for the whole process.
-// Only the tool registrations are reloadable: on each file change we re-import
-// `server.ts` through Vite's SSR module runner, `.remove()` the previous tool
-// handles, and register a fresh batch — the SDK notifies the client via
-// `tools/list_changed`.
-//
-// This file is never bundled into `dist` (`vite build` entry is `src/index.ts`).
-// MCP owns stdout, so every diagnostic goes to stderr via the logger.
+// Dev-only hot reload: tool implementations reload on file change without
+// restarting the process. The transport and McpServer are single-use under the
+// SDK (`StdioServerTransport.start()` throws on a second call), so they live for
+// the whole process and only the tool registrations are swapped. Never bundled
+// into dist (build entry is src/index.ts). Diagnostics go to stderr.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -23,9 +15,8 @@ import {
 
 import { logger } from './logger.js';
 
-// The reloadable module is loaded through Vite, not imported statically, so the
-// runner controls its cache and can re-evaluate it on change. Its shape mirrors
-// what `src/server.ts` exports; the runtime instance comes from `runner.import`.
+// Loaded through Vite (not imported statically) so the runner controls its cache
+// and can re-evaluate it on change.
 interface RuntimeModule {
   createMcpServer(): McpServer;
   registerTools(server: McpServer): { remove(): void }[];
@@ -35,8 +26,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const serverEntry = resolve(here, 'server.ts');
 
-// Editors save several files in quick succession; coalesce the burst into one
-// reload rather than reloading per file.
 const RELOAD_DEBOUNCE_MS = 150;
 
 const ignoredSegments = ['/node_modules/', '/dist/', '/.git/', '/coverage/'];
@@ -46,42 +35,33 @@ function shouldReload(file: string): boolean {
 }
 
 async function main(): Promise<void> {
-  // Programmatic Vite dev server: transform + module graph + watcher, no HTTP
-  // listener and no stdout output. `configFile: false` keeps it decoupled from
-  // the build/vitest config; the SSR environment is runnable by default.
   const vite = await createViteServer({
     appType: 'custom',
     configFile: false,
-    // Vite logs `info` (e.g. "(ssr) page reload") via `console.log` to stdout,
-    // which would corrupt the MCP stream. `warn` keeps transform errors on
-    // stderr and silences the info-level reload chatter.
+    // Vite logs `info` (e.g. "(ssr) page reload") via console.log to stdout,
+    // which corrupts the MCP stream; `warn` keeps errors on stderr.
     logLevel: 'warn',
     root,
     server: { middlewareMode: true },
   });
 
-  // HMR off: reloads are driven deterministically from the watcher below, so the
-  // runner's HMR client would only duplicate the work.
+  // HMR off — reloads are driven from the watcher below.
   const runner = createServerModuleRunner(vite.environments.ssr, {
     hmr: false,
   });
 
   const first = await runner.import<RuntimeModule>(serverEntry);
 
-  // The SDK registers the `tools` capability on the first registration, which
-  // must precede connect (`Server.registerCapabilities` throws post-connect).
-  // Reloads only re-add tools — the capability/handler init is idempotent, so
-  // later registerTool calls on the connected server are safe.
+  // The `tools` capability registers on the first registration and must precede
+  // connect (registerCapabilities throws post-connect); reloads are idempotent.
   const server = first.createMcpServer();
   let handles = first.registerTools(server);
 
-  // One server, one transport, connected exactly once — never reconnected.
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Reloads are serialized through a promise chain: each debounced change
-  // appends one reload after any in-flight reload, so concurrent saves never
-  // overlap and a save arriving mid-reload still produces a follow-up.
+  // Serialized via a promise chain: concurrent saves never overlap, and a
+  // mid-reload save still produces a follow-up.
   let reloadChain: Promise<void> = Promise.resolve();
 
   function scheduleReload(): void {
@@ -92,9 +72,8 @@ async function main(): Promise<void> {
     try {
       runner.evaluatedModules.clear();
       const next = await runner.import<RuntimeModule>(serverEntry);
-      // Import succeeded before we touch the live registrations, so a failed
-      // reload (transform/syntax error thrown above) leaves the currently
-      // serving tools intact.
+      // Import before removing live registrations so a failed reload leaves the
+      // currently-serving tools intact.
       for (const handle of handles) {
         handle.remove();
       }
@@ -127,15 +106,14 @@ async function main(): Promise<void> {
     try {
       await server.close();
     } catch {
-      // Best-effort close during shutdown; the rejection is intentionally swallowed.
+      // best-effort during shutdown
     }
     try {
       await vite.close();
     } catch {
-      // Best-effort close during shutdown; the rejection is intentionally swallowed.
+      // best-effort during shutdown
     }
-    // Closing the server and Vite does not guarantee the event loop drains, so
-    // force-exit on signal. The n/no-process-exit rule targets libraries.
+    // Force-exit on signal; the n/no-process-exit rule targets libraries.
     // eslint-disable-next-line n/no-process-exit
     process.exit(0);
   }

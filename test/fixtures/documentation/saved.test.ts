@@ -1,8 +1,3 @@
-// Documentation fixture golden test (DESIGN §9 taxonomy). Asserts that fenced
-// code blocks keep their language tag (```ts) through Readability + Turndown.
-// Readability's default `keepClasses:false` strips the `language-ts` class, which
-// would yield a bare ``` fence; the resolver's classesToPreserve keeps it.
-
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +22,6 @@ describe('golden: documentation saved.html', () => {
     expect(result.isError).toBeFalsy();
     const text = payloadText(result);
 
-    // Both code blocks render as ```ts — not bare ``` fences.
     const tsFences = (text.match(/```ts/g) ?? []).length;
     expect(tsFences).toBeGreaterThanOrEqual(2);
 

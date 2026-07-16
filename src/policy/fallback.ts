@@ -1,15 +1,3 @@
-// Fallback selector cascade (DESIGN §5.1). When Readability's parse() returns
-// no article content, walk a selector cascade and extract the first hit that
-// yields non-empty Markdown:
-//   article → main → [role=main] → largest text-dense block → body
-// The chosen root is sanitized and Turndowned on the SAME path as a main
-// article, so the caller always gets *something* usable and can tell it is
-// best-effort from diagnostics.fallbackUsed / extractedNode.
-//
-// Refinement of §5.1 wording: we trust Readability when parse() returns content
-// even if isProbablyReaderable was false — the cascade runs ONLY on parse
-// failure. `readerable` stays an honest diagnostic either way.
-
 import type { SanitizationDiagnostics } from '../pipeline/context.js';
 import type { ImageMode } from '../pipeline/turndown.js';
 
@@ -34,8 +22,7 @@ export interface FallbackResult {
   readonly textContent: string;
 }
 
-// Below this length a block is treated as not text-dense (nav/boilerplate-ish),
-// matching the spirit of Readability's own content-length floor.
+// Below this a block is treated as not text-dense (nav/boilerplate-ish).
 const MIN_DENSE_BLOCK_CHARS = 200;
 
 function convert(
@@ -85,9 +72,6 @@ function largestTextDenseBlock(document: Document): Element | undefined {
   return best;
 }
 
-// Walk the cascade in priority order, returning the first root that produces
-// non-empty Markdown. `largest-block` has no real selector; we name it
-// descriptively so diagnostics.extractedNode still reads cleanly.
 export function extractViaFallback(
   document: Document,
   options: Readonly<FallbackOptions>,
@@ -115,7 +99,6 @@ export function extractViaFallback(
     }
   }
 
-  // Last resort: the whole body.
   const converted = convert(document.body, options);
   if (converted) {
     return { ...converted, rootSelector: 'body' };
