@@ -5,6 +5,7 @@
 // extraction ran. `htmlToMarkdown` is the pure fn tests call directly.
 
 import type { SanitizationDiagnostics } from '../pipeline/context.js';
+import type { ToolHandle } from '../server.js';
 
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
@@ -186,8 +187,8 @@ export function htmlToMarkdownHandler(args: unknown): CallToolResult {
   }
 }
 
-export function registerHtmlToMarkdownTool(server: McpServer): void {
-  server.registerTool(
+export function registerHtmlToMarkdownTool(server: McpServer): ToolHandle {
+  return server.registerTool(
     'html_to_markdown',
     {
       description: HTML_TO_MARKDOWN_TOOL_DESCRIPTION,

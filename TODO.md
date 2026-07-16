@@ -310,6 +310,7 @@ Make extraction quality *measurable* and *debuggable*.
 | OPS-3 | CLI (`readability-mcp extract file.html`) | Next | S | cli |
 | OPS-4 | Streaming for very large docs | Future | L | transport |
 | OPS-5 | Smithery manifest + Dockerfile | Near | S | packaging |
+| OPS-6 | In-process dev hot reload (Vite SSR runner) | Done | S | dev tooling |
 
 ### OPS-1 — Worker-isolated jsdom + wall-clock timeout  · `Now` · M  ⚡ do early
 - [ ] Implement
@@ -345,6 +346,13 @@ Make extraction quality *measurable* and *debuggable*.
 - **Why:** Discoverability / install ergonomics.
 - **Lands at:** repo root files.
 - **Acceptance:** `smithery` dry-run builds; image runs the server.
+
+### OPS-6 — In-process dev hot reload  · `Done` · S
+- [x] Implement
+- **What:** `npm run dev` reloads tool implementations on file change without restarting the process or dropping the MCP client connection. One long-lived `McpServer` + `StdioServerTransport` — connected exactly once, because the SDK makes a transport single-use (`StdioServerTransport.start()` throws on a second call, and `Protocol.connect()` calls it). On change, Vite's SSR module runner (`environments.ssr.runner`, `hmr:false`) re-imports `src/server.ts` after `evaluatedModules.clear()`; the previous tool handles are `.remove()`d and a fresh batch registered (the SDK auto-fires `tools/list_changed`). Reloads are serialized via a promise chain; a failed reload (syntax error) keeps the previously-serving tools. `vite-node`'s `ViteNodeServer`/`ViteNodeRunner` are deliberately **not** used — they're a redundant cross-process RPC layer over the same Vite transform/module graph the built-in runner already drives in-process.
+- **Why:** Tighter dev loop than a process restart (no client re-`initialize` round-trip; the connection and any future in-process state survive). The transport-reuse design from the original plan was abandoned after source-checking the SDK lifecycle; the supported shape is swap-tool-registrations-on-one-server, not swap-the-server.
+- **Lands at:** `src/dev.ts` (dev-only entry; never in `dist` — `vite build` entry is `src/index.ts`, prod path unchanged). `src/server.ts` split into `createMcpServer` + `registerTools` (returns handles). The inner Vite server runs `logLevel:'warn'` so its info-level `console.log` ("`page reload`") can't reach stdout and corrupt the MCP stream.
+- **Acceptance:** Contract test (`test/server/registration.test.ts`) over a real `tools/list` round-trip; smoke-tested end-to-end over stdio JSON-RPC — clean edit reloads, a syntax error logs `[reload] failed` while old tools keep serving, restore reloads again, stdout stays clean.
 
 ---
 

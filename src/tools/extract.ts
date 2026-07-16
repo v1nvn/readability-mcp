@@ -4,6 +4,7 @@
 // `{ isError: true }` results so nothing ever throws across the wire.
 
 import type { SanitizationDiagnostics } from '../pipeline/context.js';
+import type { ToolHandle } from '../server.js';
 
 import { ExtractionError, toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
@@ -250,8 +251,8 @@ export function extractHandler(args: unknown): CallToolResult {
   }
 }
 
-export function registerExtractTool(server: McpServer): void {
-  server.registerTool(
+export function registerExtractTool(server: McpServer): ToolHandle {
+  return server.registerTool(
     'extract',
     {
       description: EXTRACT_TOOL_DESCRIPTION,

@@ -5,6 +5,8 @@
 // normalize stages so the heading tree matches what the other tools see.
 // `outlineDocument` is the pure fn tests call directly.
 
+import type { ToolHandle } from '../server.js';
+
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
@@ -74,8 +76,8 @@ export function outlineHandler(args: unknown): CallToolResult {
   }
 }
 
-export function registerOutlineTool(server: McpServer): void {
-  server.registerTool(
+export function registerOutlineTool(server: McpServer): ToolHandle {
+  return server.registerTool(
     'outline',
     {
       description: OUTLINE_TOOL_DESCRIPTION,

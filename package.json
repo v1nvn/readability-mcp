@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "vite build",
-    "dev": "vite-node src/index.ts",
+    "dev": "vite-node src/dev.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "lint": "eslint .",
