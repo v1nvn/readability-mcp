@@ -7,3 +7,6 @@ Comments explain *why*, not *what*.
 - Prefer clear names and types over a comment. When you do comment, capture intent, invariants, and non-obvious decisions only.
 
 - Use TODO.md to track issues, features and all progress.
+- Mark a task doneonly when `npm run typecheck && npm run lint:fix` is successful. 
+- Alwasys do things cleanly, never put band-aids or hacks.
+- Only add comments when absolutely required, never add comments that explain code or refer to a temp doc.

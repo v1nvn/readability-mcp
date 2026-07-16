@@ -2,41 +2,60 @@ name: release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
+  id-token: write
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-    steps:
-      - uses: googleapis/release-please-action@v5
-        id: release
-        with:
-          release-type: node
-
-  npm-publish:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release-please.outputs.tag_name || '' }}
+
+      - name: Resolve release tag
+        id: version
+        run: echo "tag=v$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version is already released
+        id: check
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${{ steps.version.outputs.tag }} already exists; nothing to publish."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-node@v6
+        if: steps.check.outputs.skip == 'false'
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Trusted publishing needs npm >= 11.5.1
+        if: steps.check.outputs.skip == 'false'
+        run: npm install -g npm@^11
+
       - run: npm ci
+        if: steps.check.outputs.skip == 'false'
       - run: npm run build
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: steps.check.outputs.skip == 'false'
+
+      - name: Publish to npm via trusted publishing
+        if: steps.check.outputs.skip == 'false'
+        run: npm publish
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.skip == 'false'
+        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5
+        with:
+          name: ${{ steps.version.outputs.tag }}
+          tag: ${{ steps.version.outputs.tag }}
+          commit: ${{ github.ref_name }}
+          generateReleaseNotes: true
+          skipIfReleaseExists: true
