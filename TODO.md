@@ -2,9 +2,13 @@
 
 > Scope: everything **after** the v1 POC (Phases 0–4).
 > This file is the curated backlog of new tools, pipeline stages, output fields, and ops work — plus the ideas we explicitly rejected and why.
-> Owner: vineet · Last reviewed: 2026-07-16
+> Owner: vineet · Last reviewed: 2026-07-17
 
 The guiding boundary (don't break it): **this server is an adapter between a renderer (chrome-devtools) and an extractor (Readability/Turndown) — deterministic, no outbound requests, no embedded LLM.** Features that cross the line use an existing abstraction (host `sampling`, chrome-devtools driving) instead of being built here.
+
+**Priority thesis (the 2026-07-17 realignment):** the server is judged by the quality of `extract`, not by how many tools it exposes. The cheap `Now` correctness wins and the dev-loop infra shipped; the backlog now leads with *make `extract` measurably better* — benchmark first, then improve recall (richer round-trips), then precision (benchmark-guarded trim). New tools, ops, and packaging stay tracked but sit behind the quality work. Themes below are *topical grouping only*; the authoritative ordering is "Recommended sequencing."
+
+**Tool-vs-option rule:** a new tool is justified only when it *skips a pipeline stage* (`outline`, `extract_metadata` skip Readability) or returns a fundamentally different shape (`extract_list` is a second engine). Alternate views of the full pipeline — images, structured data, tables, code — are **output options or metadata fields on `extract`**, not separate tools. Small MCP surface, increasingly capable pipeline.
 
 ---
 
@@ -12,7 +16,7 @@ The guiding boundary (don't break it): **this server is an adapter between a ren
 
 | Field | Meaning |
 | --- | --- |
-| **Tier** | `Now` = v1.1, correctness/cheap · `Next` = v1.2, UX · `Near` = v1.x feature · `Future` = v2+ / ambitious · `Stretch` = carried-forward / low priority |
+| **Tier** | `Now` = do first — cheap high-value capability + benchmark scaffold + safe real-web detections · `Next` = improve recall (richer round-trips), then precision (benchmark-guarded trim) · `Near` = shape output & convenience · `Future` = ambitious / second-engine / infra · `Stretch` = carried-forward / low priority · `Wontfix` = rejected (see Decisions) |
 | **Effort** | `S` < 1 day · `M` 1–3 days · `L` > 3 days |
 | **Lands at** | where in the architecture it goes (new tool / pipeline stage / policy module / output field / ops) |
 | **Status** | `idea` · `scoped` · `in-progress` · `done` · `wontfix` |
@@ -23,26 +27,31 @@ Check a box when work starts; move the item to `done` (or `wontfix` with a reaso
 
 ## Recommended sequencing
 
-Sequenced as v1.1 (`Now`: correctness, plus the `outline` later work depends on) then v1.2 (`Next`: UX). Two of the v1.1 items are correctness fixes disguised as features.
+**v1.1 shipped:** the cheap correctness wins (QUAL-1 lazy images, QUAL-2 consent banners, QUAL-6 code language tags, QUAL-7 anchor absolutization), `outline` (TGT-1), token count (CTX-1), and the dev hot-reload loop (OPS-6). OPS-1 (worker isolation) is deferred by design — infra, not extract quality.
 
-**v1.1 — do first:**
-1. **QUAL-1 — Lazy-load image resolution** (`Now`, S). Without it, SPA extractions ship broken images.
-2. **TGT-1 — `outline`** (`Now`, S). Cheap "is this worth reading?" pre-check; also the structure CTX-3 semantic chunking and `extract_section` build on.
-3. **CTX-1 — Token count** (`Now`, S). Hosts budget in tokens, not words.
-4. **OPS-1 — Worker-isolated jsdom + timeout** (`Now`, M). Robustness precondition before pointing this at arbitrary web.
-5. **QUAL-2 — Sticky / consent-banner stripping** (`Now`, S). These poison Readability's density math; near-universal on EU sites.
-6. **QUAL-6 — Code-block language tags on real markup** (`Now`, M). `extract` ships bare ` ``` ` fences (no language) on GitHub/React/docs pages — Readability strips the `highlight-source-*`/`sp-*` class before turndown. Validated on github.com + react.dev.
-7. **QUAL-7 — Anchor absolutization on non-Readability paths** (`Now`, S). `url` absolutizes `<img>` but not `<a>`; broken on `html_to_markdown` + fallback (masked on the main path).
+The backlog leads with `extract` quality and capability — and deliberately *not* with tool count. Alternate views of the pipeline ship as options/metadata on `extract` (see tool-vs-option rule).
 
-**v1.2 — UX:**
-8. **TGT-2 — `extract_links`** (`Next`, S) · **CTX-2 — `chunk`** (`Next`, M) · **OPS-3 — CLI** (`Next`, S) · **TGT-8 — `extract_metadata`** (`Next`, S).
+**Now — cheap high-value + measure:**
+1. **TGT-8 — `extract_metadata`** (S). Nearly free: `resolveMetadata` already runs with `readability` optional, so short-circuit before Readability and add `canonical`. Sits beside `outline` as a cheap pre-check.
+2. **OBS-2a — Benchmark scaffold** (S/M). The keystone — every later content change becomes a measured delta. Scope includes size/token/fidelity metrics so we don't optimize extraction into 2× larger markdown.
+3. **QUAL-3 / QUAL-4 — pagination + paywall detection** (M each). Safe diagnostics signals; zero extraction risk — can land in parallel with the scaffold.
 
-**High-value Near:**
-- **TGT-4 — JSON-LD / structured-data passthrough** (`Near`, M). Unlocks recipes/products/events — the non-article web — almost for free.
-- **OBS-2a — Benchmark scaffold** (`Near`, S/M). Land early: it gates TGT-3 and QUAL-5, and turns every later heuristic into a measured change.
+**Next — improve recall before precision:**
+4. **RICH-3 — Tables → CSV/JSON** (S). Shared matrix-IR serializer with TGT-5.
+5. **RICH-2 — Footnote collection** (S). Preserves citation structure Readability flattens.
+6. **TGT-4 — Structured data (JSON-LD/OG)** (M). A `metadata.structured` field on every `extract` result — `parseJsonLd` already runs in `resolveMetadata`, so this exposes work already done. No standalone tool.
+7. **QUAL-5 — Boilerplate dedup** (M, OBS-2-gated). Subtractive and high-risk — done *after* the recall work, against a richer baseline, with the benchmark guarding recall.
+8. **RICH-1 — Math → LaTeX** (L). Fiddly engine detection; dedicated fixtures.
 
-**Explicitly deferred (OBS-2-gated):**
-- **TGT-3 — `extract_list` feed mode** (`Near`, L). Handles the half of pages Readability can't — but it's effectively a second extraction engine; do not start until OBS-2 exists, or we can't tell if the heuristics help or hurt.
+**Near — shape output & convenience:**
+- **CTX-2/3 — chunking** · **TGT-2 — `extract_links`** · **TGT-7 — `extract_section`** · **TGT-9 — images as an `extract` option** · **OPS-3 — CLI**.
+
+**Explicitly deferred:**
+- **TGT-3 — `extract_list` feed mode** (L). A second extraction engine; do not start until OBS-2 exists, or we can't tell if the heuristics help or hurt.
+- **OPS-1 — worker isolation** (M). Infra; deferred pending a holistic worker-strategy decision (see item). The path-independent pieces (`timeout`/`maxNodes` + `TimeoutError → isError`) can still land early to bound input size.
+- **OBS-2b (full harness), OBS-1, OBS-4 (trace), OPS-2/4/5, MCP-1/2, STR-1** — land after the quality waves, or when a specific need pulls them forward.
+
+**Wontfix (low ROI — see Decisions):** TGT-6 `extract_code`, TGT-10 `normalize_html`.
 
 ---
 
@@ -53,15 +62,15 @@ Readability only extracts "the article." Half the web isn't an article.
 | ID | Title | Tier | Effort | Lands at |
 | --- | --- | --- | --- | --- |
 | TGT-1 | `outline` tool | Now | S | new tool |
-| TGT-2 | `extract_links` tool | Next | S | new tool |
+| TGT-2 | `extract_links` tool | Near | S | new tool |
 | TGT-3 | `extract_list` / feed mode | Near (OBS-2-gated) | L | new tool + policy |
-| TGT-4 | JSON-LD / structured-data passthrough | Near | M | new tool + metadata field |
+| TGT-4 | Structured data (JSON-LD/OG) | Next | M | `metadata.structured` field on `extract` |
 | TGT-5 | `extract_tables` tool | Near | M | new tool + output option |
-| TGT-6 | `extract_code` tool | Future | M | new tool |
+| TGT-6 | `extract_code` tool | Wontfix | M | — |
 | TGT-7 | `extract_section` tool | Near | S | new tool (resolver over `selectors.include`) |
-| TGT-8 | `extract_metadata` tool | Next | S | new tool (metadata-only path) |
-| TGT-9 | `extract_images` tool | Near | S | new tool (shared with QUAL-1) |
-| TGT-10 | `normalize_html` mode | Future | S | output option on `html_to_markdown` |
+| TGT-8 | `extract_metadata` tool | Now | S | new tool (short-circuit before Readability) |
+| TGT-9 | Image inventory | Near | S | output option on `extract` (shared with QUAL-1) |
+| TGT-10 | `normalize_html` mode | Wontfix | S | — |
 
 ### TGT-1 — `outline` tool  · `Now` · S
 - [x] Implement
@@ -70,7 +79,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Lands at:** New tool `outline({html, url?})`. Reuses `pipeline/dom.ts` + `normalize.ts`; no Readability/Turndown. Output: `structuredContent.outline = [{level, text, anchor}]`.
 - **Acceptance:** Golden test on a docs fixture yields the expected heading tree; nested levels correct; anchors stable.
 
-### TGT-2 — `extract_links` tool  · `Next` · S
+### TGT-2 — `extract_links` tool  · `Near` · S
 - [ ] Implement
 - **What:** Structured list of links: `{text, href (absolute), rel, isExternal}`.
 - **Why:** Pairs with chrome-devtools for crawl/navigation decisions; lets the host pick the next page without re-parsing HTML.
@@ -85,11 +94,11 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Risks:** Heuristics are fuzzy; needs the benchmark (OBS-2) to validate. Start with a few known-good fixture shapes (HN, Google results, WP index).
 - **Acceptance:** ≥80% item recall on `fixtures/{hn,search,blog-index}`; no false list-detection on article fixtures.
 
-### TGT-4 — JSON-LD / structured-data passthrough  · `Near` · M
+### TGT-4 — Structured data (JSON-LD/OG)  · `Next` · M
 - [ ] Implement
-- **What:** Parse `<script type="application/ld+json">` and `<meta>` OpenGraph; if an `Article`/`Recipe`/`Product`/`Event`/`HowTo` graph exists, return it as a typed object.
-- **Why:** Readability is article-focused and loses structure. JSON-LD unlocks non-article content (recipes, products, events) as first-class data.
-- **Lands at:** New tool `extract_structured({html, url?})` **and** a `metadata.structured` field on every `extract` result (populated by `policy/metadata.ts`, which already plans a JSON-LD → OG → … cascade — extend it to *return* the graph, not just scalars).
+- **What:** Return the parsed JSON-LD/OG graph as `metadata.structured` on every `extract` result — `Article`/`Recipe`/`Product`/`Event`/`HowTo` when present, else `null`.
+- **Why:** Readability is article-focused and loses structure. JSON-LD unlocks non-article content (recipes, products, events) as first-class data — and 95% of callers are served by it riding on `extract`; anyone wanting only the graph ignores the markdown.
+- **Lands at:** A `metadata.structured` field on `extract`, populated by `policy/metadata.ts`. `parseJsonLd` + `pickArticleNode` **already run** in `resolveMetadata` (feeding scalars today) — extend the cascade to *return* the graph object(s), not just scalars. **No standalone tool** (tool-vs-option rule); the `extract_structured` tool is dropped.
 - **Acceptance:** Recipe fixture → `{type:"Recipe", ingredients[], instructions[], cookTime…}`; product fixture → `{type:"Product", offers, rating}`; graceful `null` when absent.
 
 ### TGT-5 — `extract_tables` tool  · `Near` · M
@@ -99,12 +108,9 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Lands at:** New tool `extract_tables({html, format:"gfm"|"csv"|"json"})`; also a `tables` output option on `extract`. Parse every `<table>` into one **normalized matrix IR** (resolving `rowspan`/`colspan`), then render all three formats from that IR — **including GFM**, not Turndown's native table rule, so degenerate cells round-trip consistently. Shared serializer with RICH-3.
 - **Acceptance:** Round-trips a table with `rowspan/colspan` (document degenerate-cell handling); CSV quoted correctly.
 
-### TGT-6 — `extract_code` tool  · `Future` · M
-- [ ] Implement
-- **What:** Pull just code blocks with language detection (`<pre><code class="language-*">`, highlight.js classes, or infer).
-- **Why:** Stack Overflow answers, tutorials, docs — get the code, skip the prose.
-- **Lands at:** New tool `extract_code({html})`. Language detection via class attr first, then a small heuristic (filename/keywords) — no heavy dep.
-- **Acceptance:** SO fixture returns answer code blocks with correct `lang`.
+### TGT-6 — `extract_code` tool  · `Wontfix` · M
+- [x] Wontfix (low ROI)
+- **Decision:** Code already rides in the extracted markdown — QUAL-6 canonicalizes language tags so fenced blocks carry their language. A separate tool returning *only* code is API surface for a niche (SO scraping) the main path already covers. Dropped; revisit only if a concrete need appears.
 
 ### TGT-7 — `extract_section` tool  · `Near` · S
 - [ ] Implement
@@ -113,26 +119,23 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Lands at:** A **thin resolver over the existing `selectors.include` path** (`extract.ts`), not a new extractor. Selector mode calls straight through; heading mode uses the outline (TGT-1) to map the heading to its subtree, then scopes `include` to it. No parallel extraction logic.
 - **Acceptance:** Heading `"Authentication"` returns only that section's markdown on a docs fixture; equivalent to `selector:"#auth"`; the section ends at the next same-or-higher-level heading.
 
-### TGT-8 — `extract_metadata` tool  · `Next` · S
+### TGT-8 — `extract_metadata` tool  · `Now` · S  ⚡ cheap — beside `outline`
 - [ ] Implement
 - **What:** Return only the metadata object — `title, byline, siteName, lang, publishedTime, excerpt, canonical, url` — no markdown.
 - **Why:** Callers often want just the bibliographic info; today they must run full extraction to get it.
 - **Lands at:** Short-circuit the pipeline before Readability/Turndown and return `resolveMetadata` (`metadata.ts`) directly — `readability?` is already optional there, so this is mostly wiring. Adds one field: `canonical` (`<link rel="canonical">` → `og:url`), not in the cascade today.
 - **Acceptance:** Docs fixture returns full metadata incl. resolved canonical; no markdown in the result; markedly faster than full extract.
 
-### TGT-9 — `extract_images` tool  · `Near` · S
+### TGT-9 — Image inventory  · `Near` · S
 - [ ] Implement
-- **What:** Structured image list: `[{src, alt, width, height, caption}]`, absolute URLs, no inline markdown.
-- **Why:** Pairs with crawl/RAG where you want the image inventory, not rendered `![]()`.
-- **Lands at:** Shares the **single** lazy-resolution resolver with QUAL-1 (one image-source walker, not two). `caption` from a preceding `<figcaption>`, else `alt`.
+- **What:** Structured image list `[{src, alt, width, height, caption}]` (absolute URLs, no inline markdown) via `extract({ ..., imageInventory: true })`, emitted in `structuredContent.images`.
+- **Why:** Crawl/RAG callers want the image inventory, not rendered `![]()`.
+- **Lands at:** An **output option on `extract`**, not a tool (tool-vs-option rule). The existing `images` option already governs *inline* rendering, so this is a distinct flag. Reuses QUAL-1's lazy-resolution walker (one image-source walker, not two). `caption` from a preceding `<figcaption>`, else `alt`.
 - **Acceptance:** SPA fixture lists real (resolved) sources with captions; lazy placeholders resolved, not emitted; dedup optional.
 
-### TGT-10 — `normalize_html` mode  · `Future` · S
-- [ ] Decide whether needed
-- **What:** Input HTML → normalize → sanitize → clean HTML, **without** Readability. Reuses ~80% of the pipeline.
-- **Why:** Callers that want sanitized-but-complete HTML to feed their own extractor.
-- **Lands at:** Output option on `html_to_markdown` (which already skips Readability scoring) — expose `format: "html"` rather than mint a new tool. **Scope guardrail:** this is the existing sanitize stage exposed, nothing more — it must not grow into a general HTML cleaner.
-- **Acceptance:** SPA fixture returns sanitized full-body HTML with scripts/iframes/nonced attrs stripped; no article scoring applied.
+### TGT-10 — `normalize_html` mode  · `Wontfix` · S
+- [x] Wontfix (out of scope)
+- **Decision:** The server's product is Markdown; returning sanitized-but-complete HTML "to feed your own extractor" is a different product, and dedicated sanitizers (DOMPurify etc.) already do it. The sanitize stage stays internal. Dropped.
 
 ---
 
@@ -143,7 +146,7 @@ The audience is LLMs. Nobody serves this well.
 | ID | Title | Tier | Effort | Lands at |
 | --- | --- | --- | --- | --- |
 | CTX-1 | Token count | Now | S | metadata field |
-| CTX-2 | `chunk` option / tool | Next | M | option + tool |
+| CTX-2 | `chunk` option / tool | Near | M | option + tool |
 | CTX-3 | Semantic chunking | Near | M | policy |
 
 ### CTX-1 — Token count  · `Now` · S
@@ -153,7 +156,7 @@ The audience is LLMs. Nobody serves this well.
 - **Lands at:** `policy/metadata.ts` and the `Metadata` type — next to `wordCount`, which is a metadata field today, not a diagnostics one. Estimator: char-based heuristic (`≈ chars/4`) — no WASM dep, no model pinning. The count is *advisory* (the host re-counts before sending), so a real tokenizer's accuracy isn't worth the cost; drift on code-heavy/non-English text is acceptable and documented. Expose `{ tokenEstimate, estimator: "chars/4" }`.
 - **Acceptance:** Within ±10% of a real tokenizer on 3 fixtures (one prose, one code-heavy, one mixed); estimator name in output.
 
-### CTX-2 — `chunk` option / tool  · `Next` · M
+### CTX-2 — `chunk` option / tool  · `Near` · M
 - [ ] Implement
 - **What:** Split extracted markdown into token/char-bounded chunks with overlap; return `[{index, text, tokenCount, headingContext}]`.
 - **Why:** Direct RAG/embedding win; the host gets ready-to-embed slices instead of re-splitting.
@@ -177,9 +180,9 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 | --- | --- | --- | --- | --- |
 | QUAL-1 | Lazy-load image resolution | Now | S | pipeline stage |
 | QUAL-2 | Sticky / consent-banner stripping | Now | S | pipeline stage |
-| QUAL-3 | Pagination / infinite-scroll detection | Near | M | diagnostics field |
-| QUAL-4 | Paywall / ad-overlay detection | Near | M | diagnostics field |
-| QUAL-5 | Boilerplate dedup | Near | M | pipeline stage |
+| QUAL-3 | Pagination / infinite-scroll detection | Now | M | diagnostics field |
+| QUAL-4 | Paywall / ad-overlay detection | Now | M | diagnostics field |
+| QUAL-5 | Boilerplate dedup | Next (OBS-2-gated) | M | pipeline stage |
 | QUAL-6 | Code-block language tags on real markup | Now | M | pipeline stage |
 | QUAL-7 | Anchor (`<a href>`) absolutization | Now | S | turndown rule |
 
@@ -197,24 +200,24 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 - **Lands at:** `pipeline/normalize.ts` — remove nodes matching `[role="dialog"]`, common consent-banner selectors, and chrome overlays. Do **not** strip on `position:fixed|sticky` alone — that nukes legit fixed nav, sticky table headers, and back-to-top buttons. Require the conjunction of fixed/sticky **+ large viewport coverage + high z-index** (a true overlay), so navigation bars survive. Make it **tunable** (`cleanChrome: true` default) so it can be disabled when it over-strips.
 - **Acceptance:** Consent-dialog fixture: banner gone from output; main content preserved; removals counted.
 
-### QUAL-3 — Pagination / infinite-scroll detection  · `Near` · M
+### QUAL-3 — Pagination / infinite-scroll detection  · `Now` · M
 - [ ] Implement
 - **What:** Detect "Next page" links / numbered pagination / infinite-scroll sentinel; **report** `{type:"paginated"|"infinite", nextUrl?}`, never act.
 - **Why:** SPAs split content across scrolls/pages; the host needs to know more exists so it can drive chrome-devtools to load it.
 - **Lands at:** `policy/diagnostics.ts` field `pagination`. Respects the boundary: we *detect*, chrome-devtools *drives*.
 - **Acceptance:** Paginated article fixture → `nextUrl` correct; infinite-scroll fixture → `type:"infinite"` + selector hint.
 
-### QUAL-4 — Paywall / ad-overlay detection  · `Near` · M
+### QUAL-4 — Paywall / ad-overlay detection  · `Now` · M
 - [ ] Implement
 - **What:** Heuristics for likely paywall/overlay gating (truncated body + "subscribe" CTA, obscured content) → flag in diagnostics.
 - **Why:** Lets the host know the extraction may be partial *without* silently returning a short article as if complete.
 - **Lands at:** `policy/diagnostics.ts` field `gated: {likely: boolean, reason}`.
 - **Acceptance:** Soft-paywall fixture flagged; clean article not.
 
-### QUAL-5 — Boilerplate dedup  · `Near` · M
+### QUAL-5 — Boilerplate dedup  · `Next (OBS-2-gated)` · M
 - [ ] Implement
 - **What:** Strip "related posts" / newsletter signup / "read next" blocks Readability sometimes retains.
-- **Why:** Reduces noise / token cost.
+- **Why:** Reduces noise / token cost — but it's subtractive and the easiest way to silently delete useful info, so it ships *after* the recall work (RICH / TGT-4) against a richer baseline, benchmark-guarded (improve recall before precision).
 - **Lands at:** `pipeline/normalize.ts` post-Readability trim, or a `policy/trim.ts`. Careful: easy to over-strip — gate behind tests.
 - **Acceptance:** Removed-block count in diagnostics; no content loss on article fixtures (benchmarked, OBS-2).
 
@@ -240,11 +243,11 @@ Make non-prose content LLM-readable.
 
 | ID | Title | Tier | Effort | Lands at |
 | --- | --- | --- | --- | --- |
-| RICH-1 | Math → LaTeX | Near | L | turndown rule |
-| RICH-2 | Footnote collection | Near | S | turndown rule |
-| RICH-3 | Tables → CSV/JSON option | Near | S | output option (shared with TGT-5) |
+| RICH-1 | Math → LaTeX | Next | L | turndown rule |
+| RICH-2 | Footnote collection | Next | S | turndown rule |
+| RICH-3 | Tables → CSV/JSON option | Next | S | output option (shared with TGT-5) |
 
-### RICH-1 — Math → LaTeX  · `Near` · L
+### RICH-1 — Math → LaTeX  · `Next` · L
 - [ ] Implement
 - **What:** Serialize KaTeX/MathJax-rendered math back to `$…$` / `$$…$$`.
 - **Why:** Scientific/docs pages are garbage to an LLM without this; with it they're first-class.
@@ -252,14 +255,14 @@ Make non-prose content LLM-readable.
 - **Risks:** Engine/version detection is fiddly; needs dedicated fixtures (arXiv abstract, MDN math, docs sites).
 - **Acceptance:** KaTeX + MathJax fixtures → correct inline/display LaTeX; fallback leaves a placeholder, never crashes.
 
-### RICH-2 — Footnote collection  · `Near` · S
+### RICH-2 — Footnote collection  · `Next` · S
 - [ ] Implement
 - **What:** Gather `<sup>`/footnote refs and link them inline ↔ definitions; append a footnotes section.
 - **Why:** Preserves citation structure Readability flattens.
 - **Lands at:** Turndown rule + post-process.
 - **Acceptance:** Article-with-footnotes fixture → numbered refs resolve to a definitions list.
 
-### RICH-3 — Tables → CSV/JSON option  · `Near` · S
+### RICH-3 — Tables → CSV/JSON option  · `Next` · S
 - [ ] Implement (shared serializer with TGT-5)
 - **What:** `tables: "gfm"|"csv"|"json"` output option on `extract`.
 - **Why:** Some callers want data, not rendered tables.
@@ -275,8 +278,9 @@ Make extraction quality *measurable* and *debuggable*.
 | ID | Title | Tier | Effort | Lands at |
 | --- | --- | --- | --- | --- |
 | OBS-1 | `explain` tool | Near | M | new tool |
-| OBS-2 | Extraction-quality benchmark | Near | L | test infra |
+| OBS-2 | Extraction-quality benchmark | Now | L | test infra |
 | OBS-3 | Differential golden tests vs Readability versions | Future | M | CI |
+| OBS-4 | Pipeline trace & timings (debug) | Near | S | diagnostics field |
 
 ### OBS-1 — `explain` tool  · `Near` · M
 - [ ] Implement
@@ -285,12 +289,12 @@ Make extraction quality *measurable* and *debuggable*.
 - **Lands at:** New tool `explain({html, url?, selectors?})`. Requires Readability `debug:true` + capturing its candidate scoring; may need a thin fork/wrapper to surface scores.
 - **Acceptance:** On a mis-extracted fixture, `explain` shows *why* the wrong node won.
 
-### OBS-2 — Extraction-quality benchmark  · `Near` · L  ⚡ land the scaffold early
+### OBS-2 — Extraction-quality benchmark  · `Now` · L  ⚡ keystone — land first
 - [ ] Scaffold (OBS-2a) · [ ] Full harness (OBS-2b)
-- **What:** Across the fixture taxonomy, measure precision/recall of the extracted main-content boundary vs human-labeled "main content" regions. Ship in two phases: **(a) scaffold** — label the *existing* fixtures and emit a per-PR content-delta report (S/M); **(b) full harness** — precision/recall metrics + aggregate scoring (the L).
-- **Why:** This is how you *prove* an option (e.g. `extraction:"aggressive"`, QUAL-2) actually helps instead of guessing. Required to ship TGT-3 and QUAL-5 confidently — so the scaffold lands first; every heuristic after that becomes measurable instead of guessed.
-- **Lands at:** `test/bench/` — labeled fixtures + a metrics script run in CI on a dedicated job (not blocking PRs unless regression).
-- **Acceptance:** (a) a PR that touches extraction shows a readable content delta per fixture; (b) reports per-fixture and aggregate precision/recall.
+- **What:** Across the fixture taxonomy, measure both *correctness* (precision/recall of the extracted main-content boundary vs human-labeled regions) **and *fidelity/cost*** — so optimizing extraction can't silently balloon the output. Report per fixture: markdown chars, estimated tokens, compression ratio (input nodes → output chars), nodes removed, and counts of preserved images/tables/links. Ship in two phases: **(a) scaffold** — label the *existing* fixtures and emit a per-PR content-delta + metric report (S/M); **(b) full harness** — precision/recall + aggregate scoring (the L).
+- **Why:** This is how you *prove* an option (e.g. `extraction:"aggressive"`, QUAL-2) actually helps instead of guessing, and catch the failure mode where "better extraction" quietly produces 2× larger markdown. Required to ship TGT-3 and QUAL-5 confidently — so the scaffold lands first; every heuristic after that becomes measurable instead of guessed.
+- **Lands at:** `test/bench/` — labeled fixtures + a metrics script run in CI on a dedicated job (not blocking PRs unless regression). Per-stage timings come from OBS-4.
+- **Acceptance:** (a) a PR that touches extraction shows a readable content delta + the size/token/fidelity metrics per fixture; (b) reports per-fixture and aggregate precision/recall.
 
 ### OBS-3 — Differential golden tests vs Readability versions  · `Future` · M
 - [ ] Implement
@@ -299,20 +303,27 @@ Make extraction quality *measurable* and *debuggable*.
 - **Lands at:** CI matrix job.
 - **Acceptance:** A Readability bump produces a readable diff of affected fixtures.
 
+### OBS-4 — Pipeline trace & timings  · `Near` · S
+- [ ] Implement
+- **What:** Per-stage timings (`normalize`, `stripConsent`, `absolutize`, `readability`, `turndown`, `metadata`) and the ordered stage list, surfaced in `diagnostics.trace` only under a debug flag.
+- **Why:** Not for end-users — for future-us. When someone reports "this page is slow" or a benchmark regresses, the trace pinpoints the stage. Cheap to instrument (wrap each stage in `performance.now()`); OBS-2 consumes the same timings.
+- **Lands at:** `policy/diagnostics.ts` adds an optional `trace: { stage, ms }[]`, emitted only under a `debug` option — not a tool.
+- **Acceptance:** With the debug flag on, a slow fixture's diagnostics show per-stage ms summing to the total; absent otherwise.
+
 ---
 
 ## Theme F — Robustness / ops
 
 | ID | Title | Tier | Effort | Lands at |
 | --- | --- | --- | --- | --- |
-| OPS-1 | Worker-isolated jsdom + wall-clock timeout | Now | M | ops |
+| OPS-1 | Worker-isolated jsdom + wall-clock timeout | Future | M | ops |
 | OPS-2 | MCP `Resources` for cache | Near | M | mcp resources |
-| OPS-3 | CLI (`readability-mcp extract file.html`) | Next | S | cli |
+| OPS-3 | CLI (`readability-mcp extract file.html`) | Near | S | cli |
 | OPS-4 | Streaming for very large docs | Future | L | transport |
 | OPS-5 | Smithery manifest + Dockerfile | Near | S | packaging |
 | OPS-6 | In-process dev hot reload (Vite SSR runner) | Done | S | dev tooling |
 
-### OPS-1 — Worker-isolated jsdom + wall-clock timeout  · `Now` · M  ⚡ do early
+### OPS-1 — Worker-isolated jsdom + wall-clock timeout  · `Future` · M  (deferred — see note)
 - [ ] Implement
 - **What:** Run jsdom/Readability in a worker (or child process) with a wall-clock budget; `maxNodes` + `timeout` together bound worst-case cost.
 - **Why:** Pathological/malicious HTML can hang or OOM jsdom; one bad page must not kill the server. Precondition before pointing this at arbitrary web.
@@ -327,7 +338,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Lands at:** `src/resources.ts` + a small LRU/TTL store (in-memory for v1, pluggable).
 - **Acceptance:** Same HTML twice → second call served from cache (diagnostics/cache hit); different nonce → still a hit.
 
-### OPS-3 — CLI  · `Next` · S
+### OPS-3 — CLI  · `Near` · S
 - [ ] Implement
 - **What:** `readability-mcp extract file.html [--format md|json|html] [--max-chars N] [--stdin]`. Reads from stdin when no file is given (so `cat page.html | readability-mcp extract` works); `--stdin` is an explicit no-op alias for discoverability.
 - **Why:** Free DX for non-MCP use (scripts, one-offs); reuses the exact same pipeline.
@@ -405,12 +416,42 @@ Recorded so future-us doesn't re-litigate them.
 | Crawling / "follow all links" | **Reject** | That's chrome-devtools' job — it owns the browser. We consume one page at a time. `extract_links` (TGT-2) *enables* crawling but doesn't drive it. |
 | Server-side `fetch` of URLs (beyond STR-1) | **Reject** | Static-only fetch reproduces the reference server's empty-article-on-SPAs failure on the exact pages this server exists for, and adds an SSRF surface. |
 | `diff_pages` tool | **Reject** | Diffing two markdown strings is a 3-line host operation; not worth a tool. |
+| `extract_code` tool (TGT-6) | **Wontfix** | Code already rides in the markdown (QUAL-6 tags it); a code-only tool is surface for a niche the main path covers. |
+| `normalize_html` mode (TGT-10) | **Wontfix** | The server produces Markdown; sanitized-HTML output is a different product with existing tools (DOMPurify). |
+| Standalone `extract_structured` / `extract_images` tools | **Reject** (option/field on `extract` instead) | They're alternate views of one pipeline, not distinct capabilities — see tool-vs-option rule. |
+
+---
+
+## Fixture taxonomy
+
+Referenced throughout (OBS-2 labels these; QUAL/RICH items prove against them) but defined once here. This is the long-term coverage map — every quality claim is measured against a fixture in this tree. One rendered-HTML fixture per row under `test/fixtures/`, hand-labeled with the expected main-content boundary where it matters.
+
+**Article-like (core Readability path):**
+- `articles/` — long-form prose, the baseline.
+- `blogs/` — blog posts (sidebar/nav noise).
+- `news/` — news articles (bylines, datelines, related-content blocks → QUAL-5).
+- `documentation/` — docs sites (headings, code, nav).
+- `api-reference/` — API docs (tables, param lists, code).
+- `wikipedia/` — encyclopedic (citations, infoboxes, tables).
+- `github/` — rendered READMEs (QUAL-6 code fences).
+
+**Non-article (Readability's weak spot — TGT-3 territory):**
+- `recipes/` · `products/` — JSON-LD/OG structured data (TGT-4).
+- `forums/` · `stackoverflow/` · `hn/` · `search/` — list/feed/index pages.
+
+**Rich content (RICH):**
+- `tables/` (RICH-3 / TGT-5) · `math/` (RICH-1) · `footnotes/` (RICH-2).
+
+**Quality edge cases (QUAL):**
+- `paywalls/` (QUAL-4) · `consent/` (QUAL-2) · `pagination/` · `infinite-scroll/` (QUAL-3).
 
 ---
 
 ## Cross-cutting notes
 
+- **Extract quality is the spine of the roadmap:** new tools and ops items are tracked, but the value is the quality of `extract`. Quality work (QUAL / RICH / OBS-2 / TGT-4) leads; tool-count and ops items follow.
 - **Everything respects the boundary:** no item adds outbound I/O except STR-1 (opt-in). No item embeds an LLM except MCP-2 (via host `sampling`).
-- **Diagnostics is the spine:** QUAL-3/4, OBS-1, and the cache-hit signal (OPS-2) all extend `structuredContent.diagnostics` — keep that schema additive and versioned (`schemaVersion`). Token count (CTX-1) lives in `metadata` next to `wordCount`, not in diagnostics.
+- **Diagnostics is the technical spine:** QUAL-3/4, OBS-1, OBS-4 (trace), and the cache-hit signal (OPS-2) all extend `structuredContent.diagnostics`. Keep that schema additive and versioned — carry both `diagnostics.schemaVersion` (the diagnostics shape) and `diagnostics.pipelineVersion` (a hash of the pipeline: `@mozilla/readability` + Turndown versions and the normalize/turndown rule set) so benchmark output can be correlated across releases. Token count (CTX-1) lives in `metadata` next to `wordCount`, not in diagnostics.
+- **Compatibility contract:** new `metadata` and `diagnostics` fields are additive; existing fields are never renamed or removed outside a major version. Hosts can pin a schema version and depend on it.
 - **Two things gate confidence in the fuzzier items:** OBS-2 (benchmark) must exist before TGT-3 (list detection) and QUAL-5 (dedup) ship, or we can't tell if they help or hurt.
-- **Reuse before reinvention:** list/structured extraction extends the existing metadata cascade; chunking reuses the outline; `extract_section` resolves through the existing `selectors.include` path; `extract_images` shares QUAL-1's resolver; `extract_metadata` is the metadata cascade short-circuited before Readability; cache uses MCP `Resources`; LLM features use `sampling`. No new first-class mechanisms where an MCP primitive or existing pipeline path already fits.
+- **Reuse before reinvention:** structured data (TGT-4) extends the existing metadata cascade (`parseJsonLd` already runs); chunking reuses the outline; `extract_section` resolves through the existing `selectors.include` path; the image inventory (TGT-9) shares QUAL-1's walker; `extract_metadata` is the metadata cascade short-circuited before Readability; cache uses MCP `Resources`; LLM features use `sampling`. No new first-class mechanisms where an MCP primitive or existing pipeline path already fits.
