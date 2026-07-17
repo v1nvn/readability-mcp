@@ -237,6 +237,28 @@ export const extractMetadataInputShape = {
 
 export const extractMetadataInputSchema = z.object(extractMetadataInputShape);
 
+export const extractLinksInputShape = {
+  html: z
+    .string()
+    .describe(
+      'Already-rendered HTML (post-JavaScript) to collect anchor links from. No Readability scoring, Turndown, or sanitization is applied — links are gathered from the raw parsed DOM, so nav/footer/main links survive.',
+    ),
+  url: z
+    .url()
+    .describe(
+      'Origin URL for absolutizing relative hrefs and computing isExternal. NEVER fetched — origin context only.',
+    )
+    .optional(),
+  sameOriginOnly: z
+    .boolean()
+    .describe(
+      'Drop cross-origin links; keep same-origin, relative, and fragment links.',
+    )
+    .default(false),
+} as const;
+
+export const extractLinksInputSchema = z.object(extractLinksInputShape);
+
 export const chunkTextInputShape = {
   text: z
     .string()
@@ -270,6 +292,7 @@ export const chunkTextInputSchema = z.object(chunkTextInputShape);
 
 export type ChunkTextInput = z.infer<typeof chunkTextInputSchema>;
 export type ExtractInput = z.infer<typeof extractInputSchema>;
+export type ExtractLinksInput = z.infer<typeof extractLinksInputSchema>;
 export type ExtractMetadataInput = z.infer<typeof extractMetadataInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
 export type OutlineInput = z.infer<typeof outlineInputSchema>;

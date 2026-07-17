@@ -5,6 +5,7 @@ import type { TableFormat } from '../policy/tables.js';
 
 import { processFootnotes } from '../policy/footnotes.js';
 import { parseTableMatrix, renderTable } from '../policy/tables.js';
+import { absolutize } from './urls.js';
 
 export type CodeBlockStyle = 'fenced' | 'indented';
 export type HeadingStyle = 'atx' | 'setext';
@@ -127,17 +128,6 @@ export function toMarkdown(
     return body;
   }
   return `${body.replace(/\n+$/, '')}\n\n${trailingBlocks.join('\n')}`;
-}
-
-function absolutize(src: string, baseUrl: string | undefined): string {
-  if (!src || !baseUrl) {
-    return src;
-  }
-  try {
-    return new URL(src, baseUrl).href;
-  } catch {
-    return src;
-  }
 }
 
 function applyImagePolicy(

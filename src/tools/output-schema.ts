@@ -330,3 +330,60 @@ export const chunkTextOutputShape = {
 export const chunkTextOutput = z.object(chunkTextOutputShape);
 
 export type ChunkTextStructuredContent = z.infer<typeof chunkTextOutput>;
+
+export const linkObjectSchema = z
+  .object({
+    text: z
+      .string()
+      .describe(
+        'Anchor text content, whitespace-collapsed and trimmed (capped at 300 chars).',
+      ),
+    href: z
+      .string()
+      .describe(
+        'Absolute href (resolved against url when provided); unchanged when url is absent or the pair fails to parse.',
+      ),
+    rel: z
+      .string()
+      .describe(
+        'The raw rel attribute value (e.g. "noopener noreferrer", "nofollow"), or the empty string when absent.',
+      ),
+    isExternal: z
+      .boolean()
+      .describe(
+        'True when url is provided and the href parses to a different origin than url. False for relative, fragment, same-origin, non-http(s) (mailto/tel/javascript), and malformed hrefs.',
+      ),
+  })
+  .describe(
+    'A single anchor link with its text, absolute href, rel, and origin.',
+  );
+
+export const extractLinksOutputShape = {
+  schemaVersion: z
+    .literal(1)
+    .describe(
+      'Structured-content schema version. Bumps only on breaking shape changes to this object.',
+    ),
+  content: z
+    .string()
+    .describe(
+      'Readable rendering of the link list (one `- [text](href)` line per link), so content[0].text is never empty.',
+    ),
+  links: z
+    .array(linkObjectSchema)
+    .describe(
+      'Anchors in document order, hrefs absolutized against url. No deduplication.',
+    ),
+  metadata: z
+    .object({
+      url: z
+        .string()
+        .optional()
+        .describe('The url passed in (origin context, never fetched).'),
+    })
+    .describe('Extract-links document metadata.'),
+} as const;
+
+export const extractLinksOutput = z.object(extractLinksOutputShape);
+
+export type ExtractLinksStructuredContent = z.infer<typeof extractLinksOutput>;

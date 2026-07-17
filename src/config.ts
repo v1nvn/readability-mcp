@@ -42,9 +42,10 @@ const SERVER_TITLE = 'Readability MCP';
 const SERVER_DESCRIPTION =
   'Turn already-rendered (post-JavaScript) HTML into clean, LLM-friendly Markdown plus metadata, via Mozilla Readability, Turndown, and DOMPurify. Makes no outbound requests — HTML is the only input.';
 
-const SERVER_INSTRUCTIONS = `Five tools, all fed already-rendered HTML (e.g. document.documentElement.outerHTML from a browser/devtools capture) — except \`chunk_text\`, which operates on already-extracted text. The server never fetches URLs.
+const SERVER_INSTRUCTIONS = `Six tools, all fed already-rendered HTML (e.g. document.documentElement.outerHTML from a browser/devtools capture) — except \`chunk_text\`, which operates on already-extracted text. The server never fetches URLs.
 
 - extract: main tool. Runs Readability to pull the article and returns Markdown + metadata + diagnostics. Use by default for article-like pages. Pass the \`chunk\` option to also emit token-bounded chunks for RAG/embedding.
+- extract_links: return a structured list of anchor links ({text, href, rel, isExternal}) from the raw DOM — hrefs absolutized against url; pairs with chrome-devtools for crawl/navigation decisions.
 - extract_metadata: return only the bibliographic metadata (title, byline, siteName, lang, publishedTime, excerpt, canonical, url) without running Readability — fast pre-check for crawlers/citation.
 - html_to_markdown: convert an arbitrary HTML fragment to Markdown with NO Readability scoring (e.g. a snippet already isolated via devtools).
 - outline: cheap heading pre-check (h1-h6 with stable anchor ids) before paying for full extraction.

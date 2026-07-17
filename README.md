@@ -55,7 +55,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All five tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All six tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -102,6 +102,18 @@ Returns the document outline (`h1`–`h6` in document order with stable anchor i
 | `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
 
 Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an indented-bullet TOC rendered into `content[0].text`, and `metadata = {title?, url?}` (`title` falls back from `<title>` to the first `<h1>`). Anchor precedence: the heading's own `id`, then a descendant permalink's `#fragment`, then a slug of the text (deduped `-1`, `-2`, … for generated slugs only — author ids are kept verbatim).
+
+### `extract_links` — anchor inventory for crawl/navigation
+
+Returns a structured list of anchor links — `[{text, href, rel, isExternal}]` in document order — gathered from the raw parsed DOM. Runs **no** Readability, Turndown, sanitization, or `normalizeDocument` chrome-stripping, so nav/footer/main links survive (the crawl-relevant ones). Pairs with chrome-devtools for crawl/navigation decisions: the host picks the next page without re-parsing HTML.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; absolutizes relative `href`s and drives `isExternal`. |
+| `sameOriginOnly` | `false` | Drop cross-origin links; keep same-origin, relative, fragment, and non-http(s) (`mailto`/`tel`/`javascript`) links. |
+
+Output shape: `structuredContent.links = [{text, href, rel, isExternal}]` plus a `- [text](href)` rendering in `content[0].text`. `href` is absolutized against `url` (unchanged when `url` is absent or the pair fails to parse). `isExternal` is `true` only when `url` is provided **and** the absolutized `href` parses to a different HTTP(S) origin — relative, fragment, same-origin, `mailto:`/`tel:`/`javascript:`, and malformed hrefs are all `false`. `rel` is the raw attribute value (`"noopener noreferrer"`, `"nofollow"`, …) or `""` when absent. Anchors with no `href` are skipped; the rest are kept in document order with **no deduplication**.
 
 ### `extract_metadata` — bibliographic pre-check
 

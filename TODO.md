@@ -80,7 +80,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Acceptance:** Golden test on a docs fixture yields the expected heading tree; nested levels correct; anchors stable.
 
 ### TGT-2 — `extract_links` tool  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Structured list of links: `{text, href (absolute), rel, isExternal}`.
 - **Why:** Pairs with chrome-devtools for crawl/navigation decisions; lets the host pick the next page without re-parsing HTML.
 - **Lands at:** New tool `extract_links({html, url?, sameOriginOnly?})`. Absolutization reuses `normalize.ts`. Output: `structuredContent.links = [...]`.
