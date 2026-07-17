@@ -175,3 +175,116 @@ describe('estimateTokens', () => {
     expect(estimateTokens('')).toEqual({ tokenEstimate: 0, estimator: 'chars/4' });
   });
 });
+
+describe('metadata.structured', () => {
+  function resolveWith(html: string) {
+    return resolveMetadata({
+      document: doc(html),
+      readability: null,
+      url: undefined,
+      textContent: '',
+      wordCount: 0,
+      readingTimeMin: 0,
+    });
+  }
+
+  it('returns the Recipe node with ingredient/instruction fields intact', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Recipe",
+       "name":"Chocolate Chip Cookies",
+       "recipeIngredient":["2 cups flour","1 cup butter"],
+       "recipeInstructions":[{"@type":"HowToStep","text":"Mix"},{"@type":"HowToStep","text":"Bake"}],
+       "cookTime":"PT10M","recipeYield":"24 cookies"}
+      </script>
+    </head><body></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured).toBeDefined();
+    expect(m.structured?.['@type']).toBe('Recipe');
+    expect(m.structured?.['name']).toBe('Chocolate Chip Cookies');
+    expect(m.structured?.['recipeIngredient']).toEqual([
+      '2 cups flour',
+      '1 cup butter',
+    ]);
+    expect(m.structured?.['cookTime']).toBe('PT10M');
+    expect(m.structured?.['recipeInstructions']).toHaveLength(2);
+  });
+
+  it('returns the Product node with offers and aggregateRating', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Product",
+       "name":"Wireless Headphones",
+       "offers":{"@type":"Offer","price":"99.99","priceCurrency":"USD"},
+       "aggregateRating":{"@type":"AggregateRating","ratingValue":"4.5","reviewCount":"128"}}
+      </script>
+    </head><body></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured?.['@type']).toBe('Product');
+    expect(m.structured?.['offers']).toEqual({
+      '@type': 'Offer',
+      price: '99.99',
+      priceCurrency: 'USD',
+    });
+    expect(m.structured?.['aggregateRating']).toMatchObject({
+      ratingValue: '4.5',
+      reviewCount: '128',
+    });
+  });
+
+  it('prefers Recipe over generic WebSite/Organization in the same graph', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"WebSite","name":"Recipe Site","url":"https://example.com"},
+        {"@type":"Organization","name":"Acme","logo":"https://example.com/logo.png"},
+        {"@type":"Recipe","name":"Soup","recipeIngredient":["water"]}
+      ]}
+      </script>
+    </head><body></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured?.['@type']).toBe('Recipe');
+    expect(m.structured?.['name']).toBe('Soup');
+  });
+
+  it('returns undefined when the graph has only trivial types', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"WebSite","name":"Only Site"},
+        {"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","name":"Home"}]}
+      ]}
+      </script>
+    </head><body></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured).toBeUndefined();
+  });
+
+  it('normalizes an array @type to a "+joined" string', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":["Article","NewsArticle"],
+       "headline":"Multi-typed","author":{"@type":"Person","name":"Sam"}}
+      </script>
+    </head><body></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured?.['@type']).toBe('Article+NewsArticle');
+  });
+
+  it('strips @context from the emitted object', () => {
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Recipe","name":"X","recipeIngredient":["a"]}
+      </script>
+    </head><body></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured).not.toHaveProperty('@context');
+    expect(m.structured?.['name']).toBe('X');
+  });
+
+  it('returns undefined when the page has no JSON-LD', () => {
+    const html = `<html><head><title>Plain</title></head><body><p>hi</p></body></html>`;
+    const m = resolveWith(html);
+    expect(m.structured).toBeUndefined();
+  });
+});

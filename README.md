@@ -85,7 +85,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 
 **Fallback.** If Readability's `parse()` returns no article (e.g. an app shell or image-only page), a selector cascade salvages the first usable root — `article` → `main` → `[role=main]` → largest text-dense block → `body` — and reports `diagnostics.fallbackUsed: true` with `extractedNode` naming the root that was used.
 
-**Metadata cascade.** Each metadata field is resolved by priority: **JSON-LD → OpenGraph → Twitter → `<meta>`/`<time>` → Readability → `<title>`** (first non-empty value wins).
+**Metadata cascade.** Each metadata field is resolved by priority: **JSON-LD → OpenGraph → Twitter → `<meta>`/`<time>` → Readability → `<title>`** (first non-empty value wins). When the page carries schema.org JSON-LD, `metadata.structured` exposes the parsed primary object (Recipe/Product/Event/HowTo/Article…) with `@context` stripped and `@type` normalized, so non-article content rides on `extract` without a separate tool.
 
 ### `html_to_markdown` — fragment path
 

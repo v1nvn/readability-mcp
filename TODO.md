@@ -95,7 +95,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Acceptance:** ≥80% item recall on `fixtures/{hn,search,blog-index}`; no false list-detection on article fixtures.
 
 ### TGT-4 — Structured data (JSON-LD/OG)  · `Next` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Return the parsed JSON-LD/OG graph as `metadata.structured` on every `extract` result — `Article`/`Recipe`/`Product`/`Event`/`HowTo` when present, else `null`.
 - **Why:** Readability is article-focused and loses structure. JSON-LD unlocks non-article content (recipes, products, events) as first-class data — and 95% of callers are served by it riding on `extract`; anyone wanting only the graph ignores the markdown.
 - **Lands at:** A `metadata.structured` field on `extract`, populated by `policy/metadata.ts`. `parseJsonLd` + `pickArticleNode` **already run** in `resolveMetadata` (feeding scalars today) — extend the cascade to *return* the graph object(s), not just scalars. **No standalone tool** (tool-vs-option rule); the `extract_structured` tool is dropped.

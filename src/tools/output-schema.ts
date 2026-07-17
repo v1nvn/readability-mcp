@@ -45,6 +45,12 @@ const metadataObjectSchema = z
       .string()
       .optional()
       .describe('Publishing site name, resolved from OpenGraph or <meta>.'),
+    structured: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe(
+        'Parsed schema.org JSON-LD primary object (Recipe/Product/Event/HowTo/Article…) when present — the raw graph node with @context stripped and @type normalized to a "+"-joined string. Absent when the page has no recognizable structured data.',
+      ),
     title: z
       .string()
       .optional()

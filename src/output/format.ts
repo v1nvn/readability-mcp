@@ -56,8 +56,11 @@ function yamlScalar(value: number | string): string {
   return `"${escaped}"`;
 }
 
-// Stable key order for deterministic frontmatter.
-const METADATA_KEYS: readonly (keyof Metadata)[] = [
+// Stable key order for deterministic frontmatter. `structured` is deliberately
+// absent: it is a nested object, not a scalar, and would dump a whole JSON-LD
+// graph into frontmatter. It reaches the host via format=json and
+// structuredContent.metadata, which serialize the full metadata object.
+const METADATA_KEYS = [
   'title',
   'byline',
   'siteName',
@@ -70,7 +73,7 @@ const METADATA_KEYS: readonly (keyof Metadata)[] = [
   'readingTimeMin',
   'tokenEstimate',
   'estimator',
-];
+] as const satisfies readonly (keyof Metadata)[];
 
 function yamlFrontmatter(metadata: Readonly<Metadata>): string {
   const lines: string[] = ['---'];

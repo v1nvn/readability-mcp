@@ -2,6 +2,11 @@ import type { GatingSignal } from '../policy/gating.js';
 import type { PaginationSignal } from '../policy/pagination.js';
 import type { ReadabilityParseResult } from './readability.js';
 
+export interface StructuredData {
+  readonly '@type'?: string;
+  readonly [key: string]: unknown;
+}
+
 export interface Metadata {
   readonly byline?: string;
   readonly canonical?: string;
@@ -11,6 +16,7 @@ export interface Metadata {
   readonly publishedTime?: string;
   readonly readingTimeMin?: number;
   readonly siteName?: string;
+  readonly structured?: StructuredData;
   readonly title?: string;
   readonly tokenEstimate?: number;
   readonly url?: string;

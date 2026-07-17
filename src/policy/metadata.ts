@@ -1,4 +1,4 @@
-import type { Metadata } from '../pipeline/context.js';
+import type { Metadata, StructuredData } from '../pipeline/context.js';
 import type { ReadabilityParseResult } from '../pipeline/readability.js';
 
 export const TOKEN_ESTIMATOR = 'chars/4';
@@ -115,6 +115,73 @@ function pickArticleNode(
   return candidates.find(node => typeMatches(node['@type'])) ?? candidates[0];
 }
 
+// Preference order for the primary structured object: richest schema.org
+// main-entity first. Article types are the tail fallback — Readability already
+// captured the article body, so they are low-value-but-recognizable. Generic
+// graph scaffolding (WebSite/Organization/BreadcrumbList) is intentionally NOT
+// listed: emitting it as `structured` would be noise, and we prefer undefined
+// over a misleading trivial node.
+const STRUCTURED_PRIORITY = [
+  'Recipe',
+  'Product',
+  'Event',
+  'HowTo',
+  'Course',
+  'Movie',
+  'Book',
+  'MusicRecording',
+  'JobPosting',
+  'FAQPage',
+  ...ARTICLE_TYPES,
+] as const;
+
+function nodeTypeList(node: JsonLdObject): readonly string[] {
+  const type = node['@type'];
+  if (Array.isArray(type)) {
+    return type.filter((t): t is string => typeof t === 'string');
+  }
+  return typeof type === 'string' ? [type] : [];
+}
+
+// Iterate priority types in order so a Recipe wins over an earlier Article
+// node, and document order wins among candidates of the same type.
+function pickStructuredObject(
+  candidates: readonly JsonLdObject[],
+): JsonLdObject | undefined {
+  for (const priorityType of STRUCTURED_PRIORITY) {
+    const hit = candidates.find(node =>
+      nodeTypeList(node).includes(priorityType),
+    );
+    if (hit) {
+      return hit;
+    }
+  }
+  return undefined;
+}
+
+// Strip @context (always https://schema.org, pure noise) and normalize a
+// multi-typed node to a "+"-joined string so the host sees a single type label.
+// Data fields are kept verbatim — the host wants the real schema.org object.
+function cleanStructured(obj: JsonLdObject): StructuredData {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '@context') {
+      continue;
+    }
+    if (key === '@type') {
+      const types = Array.isArray(value)
+        ? value.filter((t): t is string => typeof t === 'string')
+        : typeof value === 'string'
+          ? [value]
+          : [];
+      out[key] = types.join('+');
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
 // Author may be a string, a Person/Organization object, an array, or a
 // {@list: [...]} container; reduce to a comma-joined byline.
 function resolveJsonLdAuthor(author: JsonLdValue): string | undefined {
@@ -178,7 +245,9 @@ export interface MetadataInput {
 export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
   const { document, readability } = input;
 
-  const jsonLd = pickArticleNode(parseJsonLd(document));
+  const jsonLdObjects = parseJsonLd(document);
+  const jsonLd = pickArticleNode(jsonLdObjects);
+  const structuredRaw = pickStructuredObject(jsonLdObjects);
   const htmlLang = nonEmpty(
     document.documentElement.getAttribute('lang') ?? undefined,
   );
@@ -252,5 +321,6 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
     wordCount: input.wordCount,
     readingTimeMin: input.readingTimeMin,
     ...estimateTokens(input.textContent),
+    ...(structuredRaw ? { structured: cleanStructured(structuredRaw) } : {}),
   };
 }
