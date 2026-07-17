@@ -135,6 +135,17 @@ npm test            # vitest run
 npm run test:update-goldens   # UPDATE_GOLDENS=1 vitest run
 ```
 
+## Benchmark
+
+`npm run bench` prints a per-fixture metrics table (input nodes, markdown chars, token estimate, compression ratio, removed nodes, and preserved images/tables/links) plus a unified content delta against committed baselines under `test/bench/baseline/`. The bench runs in CI as a **non-blocking** job (`continue-on-error: true`), so a regression is surfaced, not gating; `bench.test.ts` additionally fails `npm test` if the committed metrics drift out of sync.
+
+```bash
+npm run bench                # print metrics + content deltas
+BENCH_UPDATE=1 npm run bench # refresh baselines (do deliberately, like UPDATE_GOLDENS)
+```
+
+Per-fixture fields: `inputNodes` (parsed element count), `markdownChars`/`tokens` (output size, chars/4), `compressionRatio` (output chars per input node), `removedNodes` (element delta across the pipeline), and `images`/`tables`/`links` (preserved content counts).
+
 ## License
 
 MIT

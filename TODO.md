@@ -290,7 +290,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** On a mis-extracted fixture, `explain` shows *why* the wrong node won.
 
 ### OBS-2 — Extraction-quality benchmark  · `Now` · L  ⚡ keystone — land first
-- [ ] Scaffold (OBS-2a) · [ ] Full harness (OBS-2b)
+- [x] Scaffold (OBS-2a) · [ ] Full harness (OBS-2b)
 - **What:** Across the fixture taxonomy, measure both *correctness* (precision/recall of the extracted main-content boundary vs human-labeled regions) **and *fidelity/cost*** — so optimizing extraction can't silently balloon the output. Report per fixture: markdown chars, estimated tokens, compression ratio (input nodes → output chars), nodes removed, and counts of preserved images/tables/links. Ship in two phases: **(a) scaffold** — label the *existing* fixtures and emit a per-PR content-delta + metric report (S/M); **(b) full harness** — precision/recall + aggregate scoring (the L).
 - **Why:** This is how you *prove* an option (e.g. `extraction:"aggressive"`, QUAL-2) actually helps instead of guessing, and catch the failure mode where "better extraction" quietly produces 2× larger markdown. Required to ship TGT-3 and QUAL-5 confidently — so the scaffold lands first; every heuristic after that becomes measurable instead of guessed.
 - **Lands at:** `test/bench/` — labeled fixtures + a metrics script run in CI on a dedicated job (not blocking PRs unless regression). Per-stage timings come from OBS-4.

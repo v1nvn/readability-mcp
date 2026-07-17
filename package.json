@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "vite build",
+    "bench": "vite-node test/bench/run.ts",
     "dev": "vite-node src/dev.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
