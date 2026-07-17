@@ -35,6 +35,23 @@ export function toMarkdown(
   // `reference` mode collects definitions as images render; append them after the pass.
   const references: string[] = [];
   applyImagePolicy(service, imageMode, baseUrl, references);
+  // Readability pre-absolutizes anchors on the main path, but html_to_markdown
+  // and the extract fallback bypass it; turndown is shared, so absolutize here
+  // for every path. Empty/absent href falls through to bare content to match
+  // turndown's default link rule (which never matches when href is falsy).
+  service.addRule('anchorAbsolutize', {
+    filter: 'a',
+    replacement: (content, node) => {
+      const rawHref = node.getAttribute('href');
+      if (!rawHref) {
+        return content;
+      }
+      const href = absolutize(rawHref, baseUrl);
+      const title = node.getAttribute('title');
+      const titlePart = title ? ` "${title.replace(/"/g, '\\"')}"` : '';
+      return `[${content}](${href}${titlePart})`;
+    },
+  });
 
   const body = service.turndown(html);
   if (imageMode === 'reference' && references.length > 0) {

@@ -31,3 +31,49 @@ describe('turndown image modes', () => {
     expect(md).toMatch(/\[img-2\]: https:\/\/example\.com\/y\.png/);
   });
 });
+
+describe('anchor absolutization', () => {
+  it('absolutizes a relative href against url', () => {
+    const md = toMarkdown('<a href="/rel">text</a>', { url: pageUrl });
+    expect(md).toContain('[text](https://example.com/rel)');
+  });
+
+  it('absolutizes both a relative anchor and an image together', () => {
+    const md = toMarkdown(
+      '<a href="/rel">text</a> and <img src="/a.png" alt="d">',
+      { images: 'keep', url: pageUrl },
+    );
+    expect(md).toContain('[text](https://example.com/rel)');
+    expect(md).toContain('![d](https://example.com/a.png)');
+  });
+
+  it('leaves an already-absolute href unchanged', () => {
+    const md = toMarkdown('<a href="https://other.test/abs">abs</a>', {
+      url: pageUrl,
+    });
+    expect(md).toContain('[abs](https://other.test/abs)');
+  });
+
+  it('preserves the title attribute', () => {
+    const md = toMarkdown('<a href="/x" title="t">text</a>', { url: pageUrl });
+    expect(md).toContain('[text](https://example.com/x "t")');
+  });
+
+  it('leaves the href as-is when no url option is provided', () => {
+    const md = toMarkdown('<a href="/rel">text</a>');
+    expect(md).toContain('[text](/rel)');
+  });
+
+  it('still renders an image (with absolute src) when the anchor wraps it', () => {
+    const md = toMarkdown('<a href="/lnk"><img src="/a.png" alt="d"></a>', {
+      images: 'keep',
+      url: pageUrl,
+    });
+    expect(md).toContain('[![d](https://example.com/a.png)](https://example.com/lnk)');
+  });
+
+  it('returns bare content when href is empty (matches turndown default)', () => {
+    const md = toMarkdown('<a href="">empty</a>', { url: pageUrl });
+    expect(md.trim()).toBe('empty');
+  });
+});

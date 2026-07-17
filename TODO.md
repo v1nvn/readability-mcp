@@ -226,7 +226,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 - **Acceptance:** Fixtures with GitHub `highlight-source-js`/`-shell` and React `sp-javascript` blocks → ` ```js ` / ` ```shell ` / ` ```javascript ` in the `extract` golden; a canonical `<pre><code class="language-ts">` still works; `html_to_markdown` output unchanged.
 
 ### QUAL-7 — Anchor absolutization on non-Readability paths  · `Now` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Absolutize `<a href>` against `url` everywhere, mirroring the existing image-absolutize rule. Today `url` absolutizes `<img src>` (custom turndown rule) but not `<a href>`; the `extract` main path is masked because Readability pre-absolutizes anchors, but `html_to_markdown` and the `extract` fallback path emit relative anchors next to absolute images.
 - **Why:** Cross-path contract consistency — a caller passing `url` expects every relative URL absolutized regardless of which path produced the markdown. Validated: `html_to_markdown` and fallback emit `[link](/rel)` alongside `![img](https://…)`.
 - **Lands at:** `pipeline/turndown.ts` — mirror the `imageKeep` rule with an `anchorKeep` rule that runs `node.getAttribute('href')` through the same `absolutize()` helper already used for images. Runs on all three paths (turndown is shared).
