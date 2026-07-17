@@ -117,6 +117,10 @@ Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, 
 
 `structuredContent.diagnostics` exposes: `readerable`, `extractedNode`, `fallbackUsed`, `removedNodes` (element delta vs. the document), `chromeRemoved` and `imagesResolved` (pre-conversion cleanup counts), `sanitization.{scripts,iframes}` (counted across the **whole** pipeline), `pagination` (`{type:"paginated"|"infinite", nextUrl?, selector?}` — detection only; the host drives loading, this server never fetches), `gated` (`{likely, reason}` — detection only; signals a likely paywall/metered gate so the host knows the extraction may be partial — this server never fetches or authenticates), and `truncated`.
 
+## Rich content
+
+- **Footnotes.** When an article pairs `<sup>` reference markers with a definitions list (`<ol class="footnotes">`, `<ol class="references">`, `[role="doc-endnotes"]`, or standalone `<li id="fn-…">`/`<li id="cite_note-…">`), both halves are auto-converted to Markdown footnote syntax — inline `[^N]` markers in place of the `<sup>` and an appended `[^N]: definition` block. The conversion is automatic (no option); when no footnote markup is detected, output is byte-identical to a plain turndown.
+
 ## Payload size (stdio)
 
 A full rendered SPA can be several MB as a string, and MCP tool args travel over JSON-RPC on stdio. Mitigations:

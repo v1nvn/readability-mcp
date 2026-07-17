@@ -123,3 +123,28 @@ describe('turndown tables option', () => {
     expect(md).not.toContain('```');
   });
 });
+
+describe('footnote collection', () => {
+  it('emits inline [^N] markers and appends a definitions block when refs+defs are paired', () => {
+    const html =
+      '<p>Claim one<sup><a href="#fn-1">1</a></sup> and claim two<sup><a href="#fn-2">2</a></sup>.</p>' +
+      '<ol class="footnotes"><li id="fn-1">First note</li><li id="fn-2">Second note</li></ol>';
+    const md = toMarkdown(html, { url: pageUrl });
+    expect(md).toContain('Claim one[^1]');
+    expect(md).toContain('claim two[^2]');
+    expect(md).toMatch(/\[\^1\]: First note/);
+    expect(md).toMatch(/\[\^2\]: Second note/);
+    // turndown must not backslash-escape the emitted markers.
+    expect(md).not.toContain('\\[^1\\]');
+    expect(md).not.toContain('\\[^2\\]');
+  });
+
+  it('produces no footnote markers when the input has no footnote markup (default unchanged)', () => {
+    const md = toMarkdown(
+      '<p>Plain paragraph with a <sup>2</sup> superscript.</p>',
+      { url: pageUrl },
+    );
+    expect(md).not.toContain('[^');
+    expect(md).toContain('Plain paragraph');
+  });
+});

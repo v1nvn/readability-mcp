@@ -256,7 +256,7 @@ Make non-prose content LLM-readable.
 - **Acceptance:** KaTeX + MathJax fixtures → correct inline/display LaTeX; fallback leaves a placeholder, never crashes.
 
 ### RICH-2 — Footnote collection  · `Next` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Gather `<sup>`/footnote refs and link them inline ↔ definitions; append a footnotes section.
 - **Why:** Preserves citation structure Readability flattens.
 - **Lands at:** Turndown rule + post-process.

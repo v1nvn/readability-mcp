@@ -3,6 +3,7 @@ import { gfm } from 'turndown-plugin-gfm';
 
 import type { TableFormat } from '../policy/tables.js';
 
+import { processFootnotes } from '../policy/footnotes.js';
 import { parseTableMatrix, renderTable } from '../policy/tables.js';
 
 export type CodeBlockStyle = 'fenced' | 'indented';
@@ -82,14 +83,35 @@ export function toMarkdown(
     },
   });
 
-  const body = service.turndown(html);
-  if (imageMode === 'reference' && references.length > 0) {
-    const refBlock = references
-      .map((ref, i) => `[img-${i + 1}]: ${ref}`)
-      .join('\n');
-    return `${body.replace(/\n+$/, '')}\n\n${refBlock}`;
+  const fnResult = processFootnotes(html);
+  const sourceHtml = fnResult?.html ?? html;
+  let body = service.turndown(sourceHtml);
+
+  if (fnResult) {
+    // Turndown sees `[^N]` as a shortcut-reference link and backslash-escapes
+    // the brackets; reverse that for the markers we emitted so they render as
+    // footnote refs. Code blocks pass through verbatim and never carry the
+    // escape, so they are unaffected.
+    for (let n = 1; n <= fnResult.footnoteDefs.length; n++) {
+      body = body.replaceAll(`\\[^${n}\\]`, `[^${n}]`);
+    }
   }
-  return body;
+
+  const trailingBlocks: string[] = [];
+  if (imageMode === 'reference' && references.length > 0) {
+    trailingBlocks.push(
+      references.map((ref, i) => `[img-${i + 1}]: ${ref}`).join('\n'),
+    );
+  }
+  if (fnResult && fnResult.footnoteDefs.length > 0) {
+    trailingBlocks.push(
+      fnResult.footnoteDefs.map((def, i) => `[^${i + 1}]: ${def}`).join('\n'),
+    );
+  }
+  if (trailingBlocks.length === 0) {
+    return body;
+  }
+  return `${body.replace(/\n+$/, '')}\n\n${trailingBlocks.join('\n')}`;
 }
 
 function absolutize(src: string, baseUrl: string | undefined): string {
