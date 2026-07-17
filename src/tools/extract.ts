@@ -234,6 +234,7 @@ export function registerExtractTool(server: McpServer): ToolHandle {
   return server.registerTool(
     'extract',
     {
+      title: 'Extract article to Markdown',
       description: EXTRACT_TOOL_DESCRIPTION,
       inputSchema: extractInputShape,
       outputSchema: outputSchemaShape,

@@ -183,6 +183,7 @@ export function registerHtmlToMarkdownTool(server: McpServer): ToolHandle {
   return server.registerTool(
     'html_to_markdown',
     {
+      title: 'Convert HTML fragment to Markdown',
       description: HTML_TO_MARKDOWN_TOOL_DESCRIPTION,
       inputSchema: htmlToMarkdownInputShape,
       outputSchema: outputSchemaShape,

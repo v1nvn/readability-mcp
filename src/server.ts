@@ -12,8 +12,8 @@ export interface ToolHandle {
 }
 
 export function createMcpServer(): McpServer {
-  const { name, version } = loadConfig();
-  return new McpServer({ name, version });
+  const { name, version, title, description, instructions } = loadConfig();
+  return new McpServer({ name, version, title, description }, { instructions });
 }
 
 export function registerTools(server: McpServer): ToolHandle[] {

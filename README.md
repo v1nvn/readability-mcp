@@ -55,7 +55,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-Both tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results.
+All three tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -103,9 +103,9 @@ Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an inde
 
 ## Diagnostics
 
-`structuredContent.diagnostics` exposes: `readerable`, `extractedNode`, `fallbackUsed`, `removedNodes` (element delta vs. the document), `sanitization.{scripts,iframes}` (counted across the **whole** pipeline), and `truncated`.
+`structuredContent.diagnostics` exposes: `readerable`, `extractedNode`, `fallbackUsed`, `removedNodes` (element delta vs. the document), `chromeRemoved` and `imagesResolved` (pre-conversion cleanup counts), `sanitization.{scripts,iframes}` (counted across the **whole** pipeline), and `truncated`.
 
-## Payload size (stdio) — DESIGN §11.1
+## Payload size (stdio)
 
 A full rendered SPA can be several MB as a string, and MCP tool args travel over JSON-RPC on stdio. Mitigations:
 

@@ -1,6 +1,6 @@
 # TODO — readability-mcp enhancement backlog
 
-> Scope: everything **after** the v1 POC. The POC (Phases 0–4) is tracked in [`DESIGN.md §12`](./DESIGN.md).
+> Scope: everything **after** the v1 POC (Phases 0–4).
 > This file is the curated backlog of new tools, pipeline stages, output fields, and ops work — plus the ideas we explicitly rejected and why.
 > Owner: vineet · Last reviewed: 2026-07-16
 
@@ -12,7 +12,7 @@ The guiding boundary (don't break it): **this server is an adapter between a ren
 
 | Field | Meaning |
 | --- | --- |
-| **Tier** | `Now` = v1.1, correctness/cheap · `Next` = v1.2, UX · `Near` = v1.x feature · `Future` = v2+ / ambitious · `Stretch` = carried from DESIGN §10 |
+| **Tier** | `Now` = v1.1, correctness/cheap · `Next` = v1.2, UX · `Near` = v1.x feature · `Future` = v2+ / ambitious · `Stretch` = carried-forward / low priority |
 | **Effort** | `S` < 1 day · `M` 1–3 days · `L` > 3 days |
 | **Lands at** | where in the architecture it goes (new tool / pipeline stage / policy module / output field / ops) |
 | **Status** | `idea` · `scoped` · `in-progress` · `done` · `wontfix` |
@@ -221,7 +221,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 ### QUAL-6 — Code-block language tags on real markup  · `Now` · M
 - [x] Implement
 - **What:** In normalize (before Readability), canonicalize real-world code-block conventions to `<pre><code class="language-X">` so the language survives Readability's class stripping and turndown emits a fenced block with the tag. Conventions to map: GitHub `<div class="highlight highlight-source-js"><pre><code>` (and `highlight-source-shell`, `-python`, …), React/sandpack `<pre class="sp-javascript">`, generic `lang-X` / `brush: X`.
-- **Why:** On real GitHub READMEs and docs pages, `extract` emits bare ` ``` ` fences with no language — Readability strips non-preserved classes (`highlight-source-js`, `sp-javascript`) before turndown runs, and `classesToPreserve` matches only `language-*`/`hljs` via literal-string equality (`_cleanClasses`). Validated on `github.com/mozilla/readability` and `react.dev/learn/…`; `html_to_markdown` is unaffected (it skips Readability). Language tags are load-bearing for LLM context on docs/repo/SO pages (DESIGN §9 taxonomy).
+- **Why:** On real GitHub READMEs and docs pages, `extract` emits bare ` ``` ` fences with no language — Readability strips non-preserved classes (`highlight-source-js`, `sp-javascript`) before turndown runs, and `classesToPreserve` matches only `language-*`/`hljs` via literal-string equality (`_cleanClasses`). Validated on `github.com/mozilla/readability` and `react.dev/learn/…`; `html_to_markdown` is unaffected (it skips Readability). Language tags are load-bearing for LLM context on docs/repo/SO pages.
 - **Lands at:** `pipeline/normalize.ts` — a `canonicalizeCodeBlocks(doc)` step before the Readability clone. For each `<pre>`, scan its own + ancestor classes for a language hint and set `<code class="language-X">` (unwrap GitHub's `<div class="highlight">` wrapper). Survival through Readability still depends on `language-X` being in the literal `classesToPreserve` list, so extend that list with common tokens (`js`, `ts`, `javascript`, `typescript`, `shell`, `python`, `java`, …); exotic languages fall back to a bare fence. Convention-handling lives in normalize (one place), not scattered across turndown rules.
 - **Acceptance:** Fixtures with GitHub `highlight-source-js`/`-shell` and React `sp-javascript` blocks → ` ```js ` / ` ```shell ` / ` ```javascript ` in the `extract` golden; a canonical `<pre><code class="language-ts">` still works; `html_to_markdown` output unchanged.
 
@@ -323,8 +323,8 @@ Make extraction quality *measurable* and *debuggable*.
 ### OPS-2 — MCP `Resources` for cache  · `Near` · M
 - [ ] Implement
 - **What:** Cache extractions and expose them as addressable `resources://readability/page/{hash}` (read-back via `resources/list` + `resources/read`).
-- **Why:** `Resources` is MCP's *idiomatic* primitive for addressable cached content — reuse it instead of inventing a cache API. Key by the **normalized** hash (DESIGN §10): collapse whitespace, strip `<script>`/nonce/CSP/generated ids/timestamps before hashing, so volatile re-renders still hit. Store **both** the normalized hash (the cache key) and the original hash alongside each entry — the original lets you diagnose cache misses (same page, different nonce, should-have-hit-but-didn't → normalizer bug) without re-hashing the input.
-- **Lands at:** `src/resources.ts` + a small LRU/TTL store (in-memory for v1, pluggable). Resource template per DESIGN §5 output schema.
+- **Why:** `Resources` is MCP's *idiomatic* primitive for addressable cached content — reuse it instead of inventing a cache API. Key by the **normalized** hash: collapse whitespace, strip `<script>`/nonce/CSP/generated ids/timestamps before hashing, so volatile re-renders still hit. Store **both** the normalized hash (the cache key) and the original hash alongside each entry — the original lets you diagnose cache misses (same page, different nonce, should-have-hit-but-didn't → normalizer bug) without re-hashing the input.
+- **Lands at:** `src/resources.ts` + a small LRU/TTL store (in-memory for v1, pluggable).
 - **Acceptance:** Same HTML twice → second call served from cache (diagnostics/cache hit); different nonce → still a hit.
 
 ### OPS-3 — CLI  · `Next` · S
@@ -380,7 +380,7 @@ Make extraction quality *measurable* and *debuggable*.
 
 ---
 
-## Stretch (carried from DESIGN §10)
+## Stretch
 
 | ID | Title | Tier | Effort | Lands at |
 | --- | --- | --- | --- | --- |
@@ -403,7 +403,7 @@ Recorded so future-us doesn't re-litigate them.
 | --- | --- | --- |
 | Embedded summarize / translate / sentiment | **Reject** (build via MCP-2 `sampling` instead) | Puts a model in the server → bloat, provider coupling, duplicates the host. The host already does this better. |
 | Crawling / "follow all links" | **Reject** | That's chrome-devtools' job — it owns the browser. We consume one page at a time. `extract_links` (TGT-2) *enables* crawling but doesn't drive it. |
-| Server-side `fetch` of URLs (beyond STR-1) | **Reject** (DESIGN §11 risk #4) | Static-only fetch reproduces the reference server's empty-article-on-SPAs failure on the exact pages this server exists for, and adds an SSRF surface. |
+| Server-side `fetch` of URLs (beyond STR-1) | **Reject** | Static-only fetch reproduces the reference server's empty-article-on-SPAs failure on the exact pages this server exists for, and adds an SSRF surface. |
 | `diff_pages` tool | **Reject** | Diffing two markdown strings is a 3-line host operation; not worth a tool. |
 
 ---
@@ -411,6 +411,6 @@ Recorded so future-us doesn't re-litigate them.
 ## Cross-cutting notes
 
 - **Everything respects the boundary:** no item adds outbound I/O except STR-1 (opt-in). No item embeds an LLM except MCP-2 (via host `sampling`).
-- **Diagnostics is the spine:** QUAL-3/4, OBS-1, and the cache-hit signal (OPS-2) all extend `structuredContent.diagnostics` — keep that schema additive and versioned (`schemaVersion`, DESIGN §5.1). Token count (CTX-1) lives in `metadata` next to `wordCount`, not in diagnostics.
+- **Diagnostics is the spine:** QUAL-3/4, OBS-1, and the cache-hit signal (OPS-2) all extend `structuredContent.diagnostics` — keep that schema additive and versioned (`schemaVersion`). Token count (CTX-1) lives in `metadata` next to `wordCount`, not in diagnostics.
 - **Two things gate confidence in the fuzzier items:** OBS-2 (benchmark) must exist before TGT-3 (list detection) and QUAL-5 (dedup) ship, or we can't tell if they help or hurt.
 - **Reuse before reinvention:** list/structured extraction extends the existing metadata cascade; chunking reuses the outline; `extract_section` resolves through the existing `selectors.include` path; `extract_images` shares QUAL-1's resolver; `extract_metadata` is the metadata cascade short-circuited before Readability; cache uses MCP `Resources`; LLM features use `sampling`. No new first-class mechanisms where an MCP primitive or existing pipeline path already fits.

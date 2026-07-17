@@ -10,3 +10,13 @@ Comments explain *why*, not *what*. The default is no comment. Write one only wh
 - Use TODO.md to track issues, features and all progress.
 - Mark a task done only when `npm run typecheck && npm run lint:fix` is successful.
 - Always do things cleanly — no band-aids or hacks.
+
+# MCP documentation
+
+The server documents itself to clients on introspection — never ship a tool, schema field, or identity value that a client would see as blank.
+
+- **Server identity.** `config.ts` exposes `title` and `description` (MCP `Implementation`) and `instructions` (`ServerOptions`), wired through `createMcpServer` in `server.ts`. All three populate `initialize`/`getServerVersion()`/`getInstructions()`.
+- **Tool metadata.** Every `registerTool` call carries a human `title` plus a `description`.
+- **Schema descriptions.** Every input and output zod field carries `.describe()` — including fields inside nested objects (`metadata`, `diagnostics`, `sanitization`, `outline[]`). No field a client introspects may be undocumented.
+- **Idiom.** Use `.describe(...).default(...)` (describe before default). This survives the SDK's `zod/v4-mini` → JSON-schema conversion and lands in the wire schema.
+- **README consistency.** Keep the README in sync with the schemas — tool count, field lists, and never a dangling doc reference (e.g. `DESIGN §x`) to a file that doesn't exist.

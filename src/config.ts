@@ -1,6 +1,11 @@
+import pkg from '../package.json' with { type: 'json' };
+
 export interface ServerConfig {
+  readonly description: string;
+  readonly instructions: string;
   readonly logLevel: LogLevel;
   readonly name: 'readability-mcp';
+  readonly title: string;
   readonly version: string;
 }
 
@@ -32,13 +37,26 @@ function resolveLogLevel(env: NodeJS.ProcessEnv): LogLevel {
   return DEFAULT_LOG_LEVEL;
 }
 
-// Tracks package.json `version` — bump both together at release.
-const SERVER_VERSION = '0.1.0';
+const SERVER_TITLE = 'Readability MCP';
+
+const SERVER_DESCRIPTION =
+  'Turn already-rendered (post-JavaScript) HTML into clean, LLM-friendly Markdown plus metadata, via Mozilla Readability, Turndown, and DOMPurify. Makes no outbound requests — HTML is the only input.';
+
+const SERVER_INSTRUCTIONS = `Three tools, all fed already-rendered HTML (e.g. document.documentElement.outerHTML from a browser/devtools capture). The server never fetches URLs.
+
+- extract: main tool. Runs Readability to pull the article and returns Markdown + metadata + diagnostics. Use by default for article-like pages.
+- html_to_markdown: convert an arbitrary HTML fragment to Markdown with NO Readability scoring (e.g. a snippet already isolated via devtools).
+- outline: cheap heading pre-check (h1-h6 with stable anchor ids) before paying for full extraction.
+
+The optional url is origin context only (absolutizes relative links); it is never fetched. Every tool returns MCP structured content (metadata, diagnostics) validated by an output schema, plus a readable payload in content[0].text. Failures surface as { isError: true } results, never thrown across the wire.`;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   return {
     name: 'readability-mcp',
-    version: SERVER_VERSION,
+    version: pkg.version,
+    title: SERVER_TITLE,
+    description: SERVER_DESCRIPTION,
+    instructions: SERVER_INSTRUCTIONS,
     logLevel: resolveLogLevel(env),
   };
 }

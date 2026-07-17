@@ -66,6 +66,7 @@ export function registerOutlineTool(server: McpServer): ToolHandle {
   return server.registerTool(
     'outline',
     {
+      title: 'Get document outline (heading TOC)',
       description: OUTLINE_TOOL_DESCRIPTION,
       inputSchema: outlineInputShape,
       outputSchema: outlineOutputShape,
