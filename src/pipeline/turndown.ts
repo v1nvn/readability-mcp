@@ -82,6 +82,21 @@ export function toMarkdown(
       return `[${content}](${href}${titlePart})`;
     },
   });
+  // Math markers are emitted by `policy/math.ts` and survive Readability via the
+  // `rdrm-math` preserve entry. A rule's replacement is inserted verbatim, so
+  // the raw LaTeX backslashes survive turndown untouched.
+  service.addRule('mathMarker', {
+    filter: node =>
+      node.nodeName === 'SPAN' && node.classList.contains('rdrm-math'),
+    replacement: (_content, node) => {
+      const tex = node.textContent.trim();
+      if (!tex) {
+        return '';
+      }
+      const display = node.getAttribute('data-display') === 'true';
+      return display ? `$$${tex}$$` : `$${tex}$`;
+    },
+  });
 
   const fnResult = processFootnotes(html);
   const sourceHtml = fnResult?.html ?? html;

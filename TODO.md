@@ -248,7 +248,7 @@ Make non-prose content LLM-readable.
 | RICH-3 | Tables → CSV/JSON option | Next | S | output option (shared with TGT-5) |
 
 ### RICH-1 — Math → LaTeX  · `Next` · L
-- [ ] Implement
+- [x] Implement
 - **What:** Serialize KaTeX/MathJax-rendered math back to `$…$` / `$$…$$`.
 - **Why:** Scientific/docs pages are garbage to an LLM without this; with it they're first-class.
 - **Lands at:** Custom turndown rule. KaTeX exposes the original LaTeX in `data-*`/`<annotation>`; MathJax v3 in `data-latex`/`<script type="math/tex">`. Detect engine, extract source, emit fenced math.

@@ -17,7 +17,9 @@ const DEFAULT_N_TOP_CANDIDATES = 5;
 // Readability keeps a class only by strict `classesToPreserve.includes(cls)`
 // equality (not regex), stripping code-block language tokens by default; list
 // the common highlight.js/prism `language-*` tokens so fences keep their tag.
-// Applies only when `keepClasses` is false.
+// `rdrm-math` is the math marker emitted by `policy/math.ts` — Readability
+// would otherwise strip it before turndown's math rule runs. Applies only when
+// `keepClasses` is false.
 const CLASSES_TO_PRESERVE: readonly string[] = [
   'hljs',
   'language-asm',
@@ -77,13 +79,18 @@ const CLASSES_TO_PRESERVE: readonly string[] = [
   'language-xml',
   'language-yaml',
   'language-yml',
+  'rdrm-math',
 ];
 
 // Bare tokens (the `X` in `language-X`) shared by convention resolvers that
 // must validate a candidate against the preserve set, e.g. sandpack's `sp-*`
-// classes, which carry infra strings alongside the language token.
+// classes, which carry infra strings alongside the language token. Filter to
+// `language-` entries so non-language preserve additions (`hljs`, `rdrm-math`)
+// do not pollute the set with the empty token.
 export const KNOWN_LANGUAGE_TOKENS: ReadonlySet<string> = new Set(
-  CLASSES_TO_PRESERVE.map(c => c.slice('language-'.length)),
+  CLASSES_TO_PRESERVE.filter(c => c.startsWith('language-')).map(c =>
+    c.slice('language-'.length),
+  ),
 );
 
 interface ModeKnobs {

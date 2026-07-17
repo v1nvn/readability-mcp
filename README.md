@@ -120,6 +120,7 @@ Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, 
 ## Rich content
 
 - **Footnotes.** When an article pairs `<sup>` reference markers with a definitions list (`<ol class="footnotes">`, `<ol class="references">`, `[role="doc-endnotes"]`, or standalone `<li id="fn-…">`/`<li id="cite_note-…">`), both halves are auto-converted to Markdown footnote syntax — inline `[^N]` markers in place of the `<sup>` and an appended `[^N]: definition` block. The conversion is automatic (no option); when no footnote markup is detected, output is byte-identical to a plain turndown.
+- **Math.** KaTeX (`<span class="katex">` with an `<annotation encoding="application/x-tex">`) and MathJax (`<script type="math/tex">` / `mode=display`) are auto-converted to `$…$` (inline) or `$$…$$` (display) LaTeX before turndown runs, so raw backslashes survive unescaped and the rendered spans never leak. The conversion is automatic (no option); when the source LaTeX is absent (a broken `.katex` with no annotation, an empty MathJax script), a `[?]` placeholder is emitted in its place — never a crash.
 
 ## Payload size (stdio)
 

@@ -1,3 +1,4 @@
+import { extractMath } from '../policy/math.js';
 import { KNOWN_LANGUAGE_TOKENS } from '../policy/resolver.js';
 
 const NONCE_ATTR = 'nonce';
@@ -17,6 +18,11 @@ export function normalizeDocument(
   document: Document,
   options?: NormalizeOptions,
 ): NormalizeCounts {
+  // MathJax source lives in `<script type="math/tex">`, which the script-removal
+  // loop below strips — extract math into markers first so both engines share
+  // one turndown rule downstream.
+  extractMath(document);
+
   const baseEls = document.querySelectorAll('base');
   // Preserve <script type="application/ld+json">: structured metadata consumed by the cascade.
   const scriptEls = document.querySelectorAll(
