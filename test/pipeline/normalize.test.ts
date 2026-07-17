@@ -1,5 +1,6 @@
 import { buildDocument } from '../../src/pipeline/dom.js';
 import {
+  canonicalizeCodeBlocks,
   normalizeDocument,
   resolveLazyImages,
   stripChrome,
@@ -311,5 +312,87 @@ describe('normalizeDocument: cleanChrome option', () => {
     expect(counts.scripts).toBe(1);
     expect(document.querySelector('script')).toBeNull();
     expect(document.querySelector('base')).toBeNull();
+  });
+});
+
+describe('canonicalizeCodeBlocks', () => {
+  it('rewrites a GitHub highlight-source-js block and unwraps the div', () => {
+    const { document } = buildDocument(
+      '<html><body><div class="highlight highlight-source-js"><pre><code>const x = 1;</code></pre></div></body></html>',
+    );
+    expect(canonicalizeCodeBlocks(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('div.highlight')).toBeNull();
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-js',
+    );
+  });
+
+  it('maps highlight-source-shell to language-shell', () => {
+    const { document } = buildDocument(
+      '<html><body><div class="highlight highlight-source-shell"><pre><code>npm install</code></pre></div></body></html>',
+    );
+    canonicalizeCodeBlocks(document);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-shell',
+    );
+  });
+
+  it('maps a sandpack sp-javascript pre to language-javascript', () => {
+    const { document } = buildDocument(
+      '<html><body><pre class="sp-javascript"><code>x</code></pre></body></html>',
+    );
+    canonicalizeCodeBlocks(document);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-javascript',
+    );
+  });
+
+  it('maps a generic lang-py code class to language-py', () => {
+    const { document } = buildDocument(
+      '<html><body><pre><code class="lang-py">x</code></pre></body></html>',
+    );
+    canonicalizeCodeBlocks(document);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-py',
+    );
+  });
+
+  it('parses a SyntaxHighlighter brush: token and wraps bare pre text in a code', () => {
+    const { document } = buildDocument(
+      '<html><body><pre class="brush: java">System.out</pre></body></html>',
+    );
+    canonicalizeCodeBlocks(document);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-java',
+    );
+    expect(document.querySelector('pre > code')?.textContent).toContain(
+      'System.out',
+    );
+  });
+
+  it('leaves an already-canonical language-ts block untouched', () => {
+    const { document } = buildDocument(
+      '<html><body><pre><code class="language-ts">const x: number = 1;</code></pre></body></html>',
+    );
+    expect(canonicalizeCodeBlocks(document)).toBe(0);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-ts',
+    );
+  });
+
+  it('leaves a no-hint block untouched', () => {
+    const { document } = buildDocument(
+      '<html><body><pre><code>x</code></pre></body></html>',
+    );
+    expect(canonicalizeCodeBlocks(document)).toBe(0);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBeNull();
+  });
+
+  it('does not throw on a pre with no code and garbage classes', () => {
+    const { document } = buildDocument(
+      '<html><body><pre class="@@@ bogus ###">leftover text</pre></body></html>',
+    );
+    expect(() => canonicalizeCodeBlocks(document)).not.toThrow();
+    expect(canonicalizeCodeBlocks(document)).toBe(0);
   });
 });

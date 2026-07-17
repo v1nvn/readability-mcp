@@ -277,3 +277,183 @@ export function resolveLazyImages(document: Document): number {
   }
   return resolved;
 }
+
+// Readability keeps a class only by literal `classesToPreserve.includes(cls)`
+// equality, so non-canonical code-block conventions — GitHub's
+// `highlight-source-js`, sandpack's `sp-javascript`, SyntaxHighlighter's
+// `brush: js` — are stripped before turndown runs and the fence loses its
+// language tag. Rewrite each convention to the canonical
+// `<code class="language-X">` form before Readability clones the document.
+const HIGHLIGHT_SOURCE_PREFIX = 'highlight-source-';
+const LANGUAGE_PREFIX = 'language-';
+const LANG_PREFIX = 'lang-';
+const SP_PREFIX = 'sp-';
+const BRUSH_RE = /brush:\s*([A-Za-z][\w-]*)/;
+const BOGUS_TOKENS = new Set(['', 'highlight', 'source', 'sp']);
+
+interface CodeToken {
+  readonly fromHighlightSource: boolean;
+  readonly token: string;
+}
+
+function isValidToken(token: string): boolean {
+  return !BOGUS_TOKENS.has(token);
+}
+
+function hasLanguageClass(el: Element): boolean {
+  for (const cls of el.classList) {
+    if (cls !== LANGUAGE_PREFIX && cls.startsWith(LANGUAGE_PREFIX)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+interface ClassSource {
+  readonly classes: readonly string[];
+  readonly raw: string;
+}
+
+// Pool the <pre>'s own classes, then ancestors up to the highlight wrapper
+// (capped at two levels), then any descendant <code>'s classes — in that order.
+function collectClassSources(
+  pre: Element,
+  code: Element | null,
+): ClassSource[] {
+  const sources: ClassSource[] = [
+    { classes: [...pre.classList], raw: pre.getAttribute('class') ?? '' },
+  ];
+  let depth = 0;
+  let el: Element | null = pre.parentElement;
+  while (el && depth < 2) {
+    sources.push({
+      classes: [...el.classList],
+      raw: el.getAttribute('class') ?? '',
+    });
+    depth++;
+    if (
+      el.tagName === 'DIV' &&
+      [...el.classList].some(c => c.startsWith('highlight'))
+    ) {
+      break;
+    }
+    el = el.parentElement;
+  }
+  if (code) {
+    sources.push({
+      classes: [...code.classList],
+      raw: code.getAttribute('class') ?? '',
+    });
+  }
+  return sources;
+}
+
+function resolveCodeToken(
+  pre: Element,
+  code: Element | null,
+): CodeToken | null {
+  const sources = collectClassSources(pre, code);
+
+  function findByPrefix(prefix: string): null | string {
+    for (const src of sources) {
+      for (const cls of src.classes) {
+        if (cls.startsWith(prefix)) {
+          const token = cls.slice(prefix.length).toLowerCase();
+          if (isValidToken(token)) {
+            return token;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Convention priority: highlight-source > language > lang > sp > brush.
+  // `brush:` is a class-attribute value, not a single class token, so it cannot
+  // be matched by prefix and is parsed from the raw attribute string instead.
+  const highlightToken = findByPrefix(HIGHLIGHT_SOURCE_PREFIX);
+  if (highlightToken) {
+    return { token: highlightToken, fromHighlightSource: true };
+  }
+  const languageToken = findByPrefix(LANGUAGE_PREFIX);
+  if (languageToken) {
+    return { token: languageToken, fromHighlightSource: false };
+  }
+  const langToken = findByPrefix(LANG_PREFIX);
+  if (langToken) {
+    return { token: langToken, fromHighlightSource: false };
+  }
+  const spToken = findByPrefix(SP_PREFIX);
+  if (spToken) {
+    return { token: spToken, fromHighlightSource: false };
+  }
+  for (const src of sources) {
+    const match = BRUSH_RE.exec(src.raw);
+    if (match) {
+      const token = match[1].toLowerCase();
+      if (isValidToken(token)) {
+        return { token, fromHighlightSource: false };
+      }
+    }
+  }
+  return null;
+}
+
+function canonicalizePre(pre: Element): boolean {
+  const code = pre.querySelector('code');
+  // turndown reads the language from the <code> class; if one is present the
+  // block is already canonical and rewriting it can only drop information.
+  if (code && hasLanguageClass(code)) {
+    return false;
+  }
+  const match = resolveCodeToken(pre, code);
+  if (!match) {
+    return false;
+  }
+
+  let target = code;
+  if (!target) {
+    target = pre.ownerDocument.createElement('code');
+    while (pre.firstChild) {
+      target.appendChild(pre.firstChild);
+    }
+    pre.appendChild(target);
+  }
+
+  const classes = [`language-${match.token}`];
+  if (target.classList.contains('hljs')) {
+    classes.push('hljs');
+  }
+  target.setAttribute('class', classes.join(' '));
+
+  // GitHub carries the language on a <div class="highlight"> wrapper rather than
+  // the <pre>; once that hint is moved onto <code>, hoist the <pre> out so the
+  // block stands alone instead of inside a div Readability scores separately.
+  if (match.fromHighlightSource) {
+    const parent = pre.parentElement;
+    if (
+      parent?.tagName === 'DIV' &&
+      [...parent.classList].some(c => c.startsWith('highlight'))
+    ) {
+      parent.replaceWith(pre);
+    }
+  }
+  return true;
+}
+
+export function canonicalizeCodeBlocks(document: Document): number {
+  let count = 0;
+  for (const pre of document.querySelectorAll('pre')) {
+    if (!pre.isConnected) {
+      continue;
+    }
+    try {
+      if (canonicalizePre(pre)) {
+        count++;
+      }
+    } catch {
+      // Defensive: malformed markup must not break the extract pipeline.
+    }
+  }
+  return count;
+}

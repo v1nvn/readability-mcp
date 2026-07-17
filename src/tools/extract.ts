@@ -5,7 +5,11 @@ import { ExtractionError, toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { formatPayload } from '../output/format.js';
 import { buildDocument } from '../pipeline/dom.js';
-import { normalizeDocument, resolveLazyImages } from '../pipeline/normalize.js';
+import {
+  canonicalizeCodeBlocks,
+  normalizeDocument,
+  resolveLazyImages,
+} from '../pipeline/normalize.js';
 import { isReaderable, parseArticle } from '../pipeline/readability.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
@@ -82,6 +86,12 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   const normalizeCounts = normalizeDocument(document, { cleanChrome });
   const imagesResolved = resolveLazyImages(document);
   applySelectors(document, selectors);
+  const codeBlocksCanonicalized = canonicalizeCodeBlocks(document);
+  if (codeBlocksCanonicalized > 0) {
+    logger.debug(
+      `canonicalized ${codeBlocksCanonicalized} code-block language tag(s)`,
+    );
+  }
 
   const readerable = isReaderable(document);
   const readabilityOptions = resolveReadabilityOptions({
