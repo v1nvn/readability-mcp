@@ -44,7 +44,7 @@ export const readabilityOverridesSchema = z
     'Escape hatch: a record spread verbatim into the Readability options. Unstable and unvalidated; overrides the extraction/keepClasses/maxNodes/minArticleLength knobs.',
   );
 
-export const chunkStrategySchema = z.enum(['char']);
+export const chunkStrategySchema = z.enum(['char', 'semantic']);
 
 export const chunkOptionsSchema = z
   .object({
@@ -65,9 +65,9 @@ export const chunkOptionsSchema = z
       .default(0),
     strategy: chunkStrategySchema
       .describe(
-        "Chunking strategy. 'char' greedily groups blank-line-separated blocks under a chars/4 token budget (may split a code block); a semantic strategy lands in a later item.",
+        "Chunking strategy. 'semantic' (default) breaks on heading/section boundaries and never splits a fenced code block; 'char' greedily groups blank-line-separated blocks under a chars/4 token budget (may split a code block).",
       )
-      .default('char'),
+      .default('semantic'),
   })
   .describe(
     'Token-bounded chunking options for splitting the extracted markdown into RAG/embedding-ready slices.',
@@ -261,9 +261,9 @@ export const chunkTextInputShape = {
     .default(0),
   strategy: chunkStrategySchema
     .describe(
-      "Chunking strategy. 'char' greedily groups blank-line-separated blocks under a chars/4 token budget.",
+      "Chunking strategy. 'semantic' (default) breaks on heading/section boundaries and never splits a fenced code block; 'char' greedily groups blank-line-separated blocks under a chars/4 token budget.",
     )
-    .default('char'),
+    .default('semantic'),
 } as const;
 
 export const chunkTextInputSchema = z.object(chunkTextInputShape);

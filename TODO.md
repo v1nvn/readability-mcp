@@ -164,7 +164,7 @@ The audience is LLMs. Nobody serves this well.
 - **Acceptance:** No chunk exceeds `maxTokens`; overlap respected; every chunk carries its section heading for context; totals reconcile.
 
 ### CTX-3 — Semantic chunking  · `Near` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Break on heading/section/list boundaries instead of mid-sentence; carry hierarchy context per chunk; never split a code block.
 - **Why:** Semantic chunks embed/retrieve far better than char slices.
 - **Lands at:** `policy/chunk.ts` `strategy:"semantic"`. Builds on the outline (TGT-1) structure. Respects the same "never inside a code fence" rule as `truncate.ts`.
