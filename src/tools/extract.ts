@@ -13,6 +13,7 @@ import {
 import { isReaderable, parseArticle } from '../pipeline/readability.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
+import { chunkMarkdown } from '../policy/chunk.js';
 import { assembleDiagnostics } from '../policy/diagnostics.js';
 import { extractViaFallback } from '../policy/fallback.js';
 import { detectGating } from '../policy/gating.js';
@@ -81,6 +82,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     wordsPerMinute,
     cleanChrome,
     tables,
+    chunk,
   } = args;
 
   const { document, window } = buildDocument(html, url);
@@ -221,6 +223,14 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     ? { ...baseDiagnostics, truncated }
     : baseDiagnostics;
 
+  // Chunk the final payload (post-format, post-truncation) so token counts
+  // reflect what the host sees in content[0].text. HTML/JSON formats carry no
+  // markdown body to slice, so `chunks` stays unset for them.
+  const chunks =
+    chunk && (format === 'markdown' || format === 'text')
+      ? chunkMarkdown(payload, chunk)
+      : undefined;
+
   return {
     content: [{ text: payload, type: 'text' }],
     structuredContent: {
@@ -228,6 +238,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       content: payload,
       metadata,
       diagnostics,
+      ...(chunks ? { chunks } : {}),
     },
   };
 }

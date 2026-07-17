@@ -42,12 +42,13 @@ const SERVER_TITLE = 'Readability MCP';
 const SERVER_DESCRIPTION =
   'Turn already-rendered (post-JavaScript) HTML into clean, LLM-friendly Markdown plus metadata, via Mozilla Readability, Turndown, and DOMPurify. Makes no outbound requests — HTML is the only input.';
 
-const SERVER_INSTRUCTIONS = `Four tools, all fed already-rendered HTML (e.g. document.documentElement.outerHTML from a browser/devtools capture). The server never fetches URLs.
+const SERVER_INSTRUCTIONS = `Five tools, all fed already-rendered HTML (e.g. document.documentElement.outerHTML from a browser/devtools capture) — except \`chunk_text\`, which operates on already-extracted text. The server never fetches URLs.
 
-- extract: main tool. Runs Readability to pull the article and returns Markdown + metadata + diagnostics. Use by default for article-like pages.
+- extract: main tool. Runs Readability to pull the article and returns Markdown + metadata + diagnostics. Use by default for article-like pages. Pass the \`chunk\` option to also emit token-bounded chunks for RAG/embedding.
 - extract_metadata: return only the bibliographic metadata (title, byline, siteName, lang, publishedTime, excerpt, canonical, url) without running Readability — fast pre-check for crawlers/citation.
 - html_to_markdown: convert an arbitrary HTML fragment to Markdown with NO Readability scoring (e.g. a snippet already isolated via devtools).
 - outline: cheap heading pre-check (h1-h6 with stable anchor ids) before paying for full extraction.
+- chunk_text: split already-extracted text into token-bounded chunks (each with index, tokenCount, and nearest preceding heading) for embedding/RAG.
 
 The optional url is origin context only (absolutizes relative links); it is never fetched. Every tool returns MCP structured content (metadata, diagnostics) validated by an output schema, plus a readable payload in content[0].text. Failures surface as { isError: true } results, never thrown across the wire.`;
 

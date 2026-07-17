@@ -75,6 +75,35 @@ const metadataObjectSchema = z
     'Resolved article metadata. Each field is the first non-empty value across a priority cascade.',
   );
 
+export const chunkObjectSchema = z
+  .object({
+    index: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Zero-based chunk position within the emitted sequence.'),
+    text: z
+      .string()
+      .describe(
+        'The chunk body (markdown or text), trimmed, sized to stay within the requested token budget.',
+      ),
+    tokenCount: z
+      .number()
+      .int()
+      .min(0)
+      .describe(
+        'Estimated token count of text (chars/4), same heuristic as metadata.tokenEstimate.',
+      ),
+    headingContext: z
+      .string()
+      .describe(
+        'Nearest preceding markdown heading text in effect at the chunk’s first block. Empty string when the chunk precedes any heading; carried from the overlap source when a chunk begins with overlap text.',
+      ),
+  })
+  .describe(
+    'One token-bounded slice of the extracted markdown, with its section heading for context.',
+  );
+
 export const outputSchemaShape = {
   schemaVersion: z
     .literal(1)
@@ -85,6 +114,12 @@ export const outputSchemaShape = {
     .string()
     .describe(
       'The human/LLM-readable payload — Markdown/html/text, or the serialized JSON when format=json.',
+    ),
+  chunks: z
+    .array(chunkObjectSchema)
+    .optional()
+    .describe(
+      'Token-bounded chunks of the extracted markdown, populated by `extract` only when the `chunk` option is set and the format yields a markdown/text body. Absent for html_to_markdown and for html/json extract formats.',
     ),
   metadata: metadataObjectSchema,
   diagnostics: z
@@ -273,3 +308,25 @@ export const extractMetadataOutput = z.object(extractMetadataOutputShape);
 export type ExtractMetadataStructuredContent = z.infer<
   typeof extractMetadataOutput
 >;
+
+export const chunkTextOutputShape = {
+  schemaVersion: z
+    .literal(1)
+    .describe(
+      'Structured-content schema version. Bumps only on breaking shape changes to this object.',
+    ),
+  content: z
+    .string()
+    .describe(
+      'Readable index of the chunks (one numbered section per chunk, each prefixed with its heading context), so content[0].text is always scannable.',
+    ),
+  chunks: z
+    .array(chunkObjectSchema)
+    .describe(
+      'The emitted chunks in order. Empty array when the input contains no non-whitespace content.',
+    ),
+} as const;
+
+export const chunkTextOutput = z.object(chunkTextOutputShape);
+
+export type ChunkTextStructuredContent = z.infer<typeof chunkTextOutput>;

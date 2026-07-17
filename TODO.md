@@ -157,7 +157,7 @@ The audience is LLMs. Nobody serves this well.
 - **Acceptance:** Within ±10% of a real tokenizer on 3 fixtures (one prose, one code-heavy, one mixed); estimator name in output.
 
 ### CTX-2 — `chunk` option / tool  · `Near` · M
-- [ ] Implement
+- [x] Implement (char strategy; semantic lands in CTX-3)
 - **What:** Split extracted markdown into token/char-bounded chunks with overlap; return `[{index, text, tokenCount, headingContext}]`.
 - **Why:** Direct RAG/embedding win; the host gets ready-to-embed slices instead of re-splitting.
 - **Lands at:** Option `chunk: {maxTokens, overlap, strategy:"char"|"semantic"}` on `extract`, **and** standalone `chunk_text` tool (operates on already-extracted text). New `policy/chunk.ts`. Default to `semantic` (CTX-3) once it lands.

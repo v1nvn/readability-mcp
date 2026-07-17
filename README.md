@@ -55,7 +55,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All four tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All five tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -82,6 +82,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 | `wordsPerMinute` | `200` | For `readingTimeMin`. |
 | `keepClasses` | `false` | Retain all classes (default strips non-language classes). |
 | `readabilityOverrides` | — | Escape hatch — passed verbatim to `new Readability(doc, …)`. Unstable. |
+| `chunk` | — | Split the extracted markdown into token-bounded chunks (RAG/embedding-ready). `{maxTokens, overlap?, strategy?}` — when set, `structuredContent.chunks` is an array of `{index, text, tokenCount, headingContext}`. Only applies to `format:"markdown" \| "text"`; HTML/JSON payloads carry no markdown body to slice and leave `chunks` unset. |
 
 **Fallback.** If Readability's `parse()` returns no article (e.g. an app shell or image-only page), a selector cascade salvages the first usable root — `article` → `main` → `[role=main]` → largest text-dense block → `body` — and reports `diagnostics.fallbackUsed: true` with `extractedNode` naming the root that was used.
 
@@ -112,6 +113,19 @@ Returns only the bibliographic metadata — `title`, `byline`, `siteName`, `lang
 | `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
 
 Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, publishedTime?, excerpt?, canonical?, url?}` plus a human-readable `key: value` rendering in `content[0].text`. Note: `wordCount`/`readingTimeMin`/`tokenEstimate` are **not** populated by this tool — they are meaningless without the extracted body.
+
+### `chunk_text` — chunk for RAG/embedding
+
+Splits already-extracted text into token-bounded chunks, each carrying `index`, `text`, `tokenCount` (chars/4, same estimator as `metadata.tokenEstimate`), and `headingContext` (the nearest preceding markdown heading in effect at the chunk's first block — empty string when the chunk precedes any heading). Operates on any text — pair with `extract`'s `chunk` option when you want chunks inline with the extraction.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `text` *(required)* | — | Already-extracted text to split (e.g. markdown from `extract`). No HTML parsing or Readability scoring — the input is chunked verbatim. |
+| `maxTokens` | `500` | Per-chunk token budget. No chunk exceeds this; oversized blocks are split by line, then hard-split. |
+| `overlap` | `0` | Tokens to overlap between consecutive chunks (`>=0`). The trailing overlapChars of chunk N becomes the leading context of chunk N+1. |
+| `strategy` | `char` | Chunking strategy. `char` greedily groups blank-line-separated blocks under a chars/4 token budget (may split a code block); a semantic strategy lands in a later item. |
+
+Output shape: `structuredContent.chunks = [{index, text, tokenCount, headingContext}]` in order, plus a readable numbered index in `content[0].text`. Empty array when the input has no non-whitespace content.
 
 ## Diagnostics
 

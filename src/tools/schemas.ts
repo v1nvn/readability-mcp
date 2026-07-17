@@ -44,6 +44,35 @@ export const readabilityOverridesSchema = z
     'Escape hatch: a record spread verbatim into the Readability options. Unstable and unvalidated; overrides the extraction/keepClasses/maxNodes/minArticleLength knobs.',
   );
 
+export const chunkStrategySchema = z.enum(['char']);
+
+export const chunkOptionsSchema = z
+  .object({
+    maxTokens: z
+      .number()
+      .int()
+      .min(1)
+      .describe(
+        'Per-chunk token budget. Each chunk.text is sized so Math.round(text.length/4) stays within this bound (hard cap; oversized blocks are split by line, then hard-split).',
+      ),
+    overlap: z
+      .number()
+      .int()
+      .min(0)
+      .describe(
+        'Tokens to overlap between consecutive chunks (>=0). The trailing overlapChars of chunk N becomes the leading context of chunk N+1, preserving cross-chunk coherence at a cost of redundant tokens.',
+      )
+      .default(0),
+    strategy: chunkStrategySchema
+      .describe(
+        "Chunking strategy. 'char' greedily groups blank-line-separated blocks under a chars/4 token budget (may split a code block); a semantic strategy lands in a later item.",
+      )
+      .default('char'),
+  })
+  .describe(
+    'Token-bounded chunking options for splitting the extracted markdown into RAG/embedding-ready slices.',
+  );
+
 export const turndownOptionsShape = {
   cleanChrome: z
     .boolean()
@@ -155,6 +184,11 @@ export const extractInputShape = {
     .optional(),
   readabilityOverrides: readabilityOverridesSchema,
   selectors: selectorsSchema,
+  chunk: chunkOptionsSchema
+    .optional()
+    .describe(
+      'Split the extracted markdown into token-bounded chunks (RAG/embedding-ready). When set, structuredContent.chunks is populated. Only applies to format:"markdown" | "text"; HTML/JSON payloads carry no markdown body to slice and leave chunks unset.',
+    ),
 } as const;
 
 export const extractInputSchema = z.object(extractInputShape);
@@ -203,6 +237,38 @@ export const extractMetadataInputShape = {
 
 export const extractMetadataInputSchema = z.object(extractMetadataInputShape);
 
+export const chunkTextInputShape = {
+  text: z
+    .string()
+    .describe(
+      'Already-extracted text to split (e.g. markdown from `extract` or any plain text). No HTML parsing or Readability scoring is applied — the input is chunked verbatim.',
+    ),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1)
+    .describe(
+      'Per-chunk token budget. Each chunk.text is sized so Math.round(text.length/4) stays within this bound (hard cap; oversized blocks are split by line, then hard-split).',
+    )
+    .default(500),
+  overlap: z
+    .number()
+    .int()
+    .min(0)
+    .describe(
+      'Tokens to overlap between consecutive chunks (>=0). The trailing overlapChars of chunk N becomes the leading context of chunk N+1.',
+    )
+    .default(0),
+  strategy: chunkStrategySchema
+    .describe(
+      "Chunking strategy. 'char' greedily groups blank-line-separated blocks under a chars/4 token budget.",
+    )
+    .default('char'),
+} as const;
+
+export const chunkTextInputSchema = z.object(chunkTextInputShape);
+
+export type ChunkTextInput = z.infer<typeof chunkTextInputSchema>;
 export type ExtractInput = z.infer<typeof extractInputSchema>;
 export type ExtractMetadataInput = z.infer<typeof extractMetadataInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
