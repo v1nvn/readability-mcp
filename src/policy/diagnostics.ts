@@ -2,6 +2,7 @@ import type {
   Diagnostics,
   SanitizationDiagnostics,
 } from '../pipeline/context.js';
+import type { PaginationSignal } from './pagination.js';
 
 export interface DiagnosticsInput {
   readonly articleHtml?: string;
@@ -11,6 +12,7 @@ export interface DiagnosticsInput {
   readonly extractedNode?: string;
   readonly fallbackUsed?: boolean;
   readonly imagesResolved?: number;
+  readonly pagination?: PaginationSignal;
   readonly readerable?: boolean;
   readonly sanitization?: SanitizationDiagnostics;
   readonly truncated?: boolean;
@@ -43,6 +45,7 @@ export function assembleDiagnostics(
     extractedNode: input.extractedNode,
     fallbackUsed: input.fallbackUsed ?? false,
     imagesResolved: input.imagesResolved,
+    pagination: input.pagination,
     removedNodes,
     chromeRemoved: input.chromeRemoved,
     sanitization: input.sanitization,

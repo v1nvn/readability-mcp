@@ -1,3 +1,4 @@
+import type { PaginationSignal } from '../policy/pagination.js';
 import type { ReadabilityParseResult } from './readability.js';
 
 export interface Metadata {
@@ -25,6 +26,7 @@ export interface Diagnostics {
   readonly extractedNode?: string;
   readonly fallbackUsed: boolean;
   readonly imagesResolved?: number;
+  readonly pagination?: PaginationSignal;
   readonly readerable?: boolean;
   readonly removedNodes?: number;
   readonly sanitization?: SanitizationDiagnostics;

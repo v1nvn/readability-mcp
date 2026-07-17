@@ -16,6 +16,7 @@ import { toMarkdown } from '../pipeline/turndown.js';
 import { assembleDiagnostics } from '../policy/diagnostics.js';
 import { extractViaFallback } from '../policy/fallback.js';
 import { resolveMetadata } from '../policy/metadata.js';
+import { detectPagination } from '../policy/pagination.js';
 import { resolveReadabilityOptions } from '../policy/resolver.js';
 import { truncateMarkdown } from '../policy/truncate.js';
 import { outputSchemaShape } from './output-schema.js';
@@ -85,6 +86,9 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
 
   const normalizeCounts = normalizeDocument(document, { cleanChrome });
   const imagesResolved = resolveLazyImages(document);
+  // Detect before applySelectors: a caller's selectors.include could scope the
+  // body and hide pagination chrome, but "more content exists" is still true.
+  const pagination = detectPagination(document, url);
   applySelectors(document, selectors);
   const codeBlocksCanonicalized = canonicalizeCodeBlocks(document);
   if (codeBlocksCanonicalized > 0) {
@@ -180,6 +184,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     extractedNode,
     fallbackUsed,
     imagesResolved,
+    pagination,
     readerable,
     sanitization,
     truncated: false,

@@ -201,7 +201,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 - **Acceptance:** Consent-dialog fixture: banner gone from output; main content preserved; removals counted.
 
 ### QUAL-3 — Pagination / infinite-scroll detection  · `Now` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Detect "Next page" links / numbered pagination / infinite-scroll sentinel; **report** `{type:"paginated"|"infinite", nextUrl?}`, never act.
 - **Why:** SPAs split content across scrolls/pages; the host needs to know more exists so it can drive chrome-devtools to load it.
 - **Lands at:** `policy/diagnostics.ts` field `pagination`. Respects the boundary: we *detect*, chrome-devtools *drives*.

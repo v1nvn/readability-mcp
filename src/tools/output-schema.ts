@@ -108,6 +108,28 @@ export const outputSchemaShape = {
         .describe(
           'Count of lazy/placeholder images resolved to their real src before conversion.',
         ),
+      pagination: z
+        .object({
+          type: z
+            .enum(['infinite', 'paginated'])
+            .describe('Kind of pagination signal detected in the document.'),
+          nextUrl: z
+            .string()
+            .optional()
+            .describe(
+              'Absolute URL of the detected next page (paginated only). Mirrors the href found in the DOM; never fetched by this server.',
+            ),
+          selector: z
+            .string()
+            .optional()
+            .describe(
+              'CSS selector of the detected load-more / infinite-scroll sentinel (infinite only).',
+            ),
+        })
+        .optional()
+        .describe(
+          'Detected pagination or infinite-scroll signal. Detection only — the host drives loading; this server never fetches.',
+        ),
       readerable: z
         .boolean()
         .optional()
