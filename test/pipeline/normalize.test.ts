@@ -347,6 +347,24 @@ describe('canonicalizeCodeBlocks', () => {
     );
   });
 
+  it('resolves sp-javascript from a multi-class sandpack pre shadowed by infra classes', () => {
+    const { document } = buildDocument(
+      '<html><body><pre class="sp-cm sp-pristine sp-javascript flex align-start"><code>let a = 1;</code></pre></body></html>',
+    );
+    canonicalizeCodeBlocks(document);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBe(
+      'language-javascript',
+    );
+  });
+
+  it('leaves a sandpack pre with only infra sp-* classes untouched', () => {
+    const { document } = buildDocument(
+      '<html><body><pre class="sp-cm sp-pristine"><code>x</code></pre></body></html>',
+    );
+    expect(canonicalizeCodeBlocks(document)).toBe(0);
+    expect(document.querySelector('pre > code')?.getAttribute('class')).toBeNull();
+  });
+
   it('maps a generic lang-py code class to language-py', () => {
     const { document } = buildDocument(
       '<html><body><pre><code class="lang-py">x</code></pre></body></html>',

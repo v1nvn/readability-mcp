@@ -79,6 +79,13 @@ const CLASSES_TO_PRESERVE: readonly string[] = [
   'language-yml',
 ];
 
+// Bare tokens (the `X` in `language-X`) shared by convention resolvers that
+// must validate a candidate against the preserve set, e.g. sandpack's `sp-*`
+// classes, which carry infra strings alongside the language token.
+export const KNOWN_LANGUAGE_TOKENS: ReadonlySet<string> = new Set(
+  CLASSES_TO_PRESERVE.map(c => c.slice('language-'.length)),
+);
+
 interface ModeKnobs {
   readonly charThreshold: number;
   readonly nbTopCandidates: number;

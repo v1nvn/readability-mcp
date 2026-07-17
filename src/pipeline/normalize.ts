@@ -1,3 +1,5 @@
+import { KNOWN_LANGUAGE_TOKENS } from '../policy/resolver.js';
+
 const NONCE_ATTR = 'nonce';
 
 export interface NormalizeCounts {
@@ -383,9 +385,20 @@ function resolveCodeToken(
   if (langToken) {
     return { token: langToken, fromHighlightSource: false };
   }
-  const spToken = findByPrefix(SP_PREFIX);
-  if (spToken) {
-    return { token: spToken, fromHighlightSource: false };
+  // Sandpack emits infra classes alongside the language class (sp-cm,
+  // sp-pristine, sp-pre-placeholder); unlike the single-token highlight-source
+  // / language / lang conventions, SP must pick the class whose token is a
+  // recognized language or it grabs an infra string the preserve list strips.
+  for (const src of sources) {
+    for (const cls of src.classes) {
+      if (!cls.startsWith(SP_PREFIX)) {
+        continue;
+      }
+      const token = cls.slice(SP_PREFIX.length).toLowerCase();
+      if (KNOWN_LANGUAGE_TOKENS.has(token)) {
+        return { token, fromHighlightSource: false };
+      }
+    }
   }
   for (const src of sources) {
     const match = BRUSH_RE.exec(src.raw);
