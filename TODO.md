@@ -147,7 +147,7 @@ The audience is LLMs. Nobody serves this well.
 | CTX-3 | Semantic chunking | Near | M | policy |
 
 ### CTX-1 — Token count  · `Now` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Estimated token count alongside `wordCount`.
 - **Why:** Hosts budget context in tokens, not words. Lets the caller decide whether to chunk or summarize before sending.
 - **Lands at:** `policy/metadata.ts` and the `Metadata` type — next to `wordCount`, which is a metadata field today, not a diagnostics one. Estimator: char-based heuristic (`≈ chars/4`) — no WASM dep, no model pinning. The count is *advisory* (the host re-counts before sending), so a real tokenizer's accuracy isn't worth the cost; drift on code-heavy/non-English text is acceptable and documented. Expose `{ tokenEstimate, estimator: "chars/4" }`.

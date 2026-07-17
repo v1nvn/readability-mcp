@@ -9,6 +9,7 @@ import { normalizeDocument, resolveLazyImages } from '../pipeline/normalize.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
 import { assembleDiagnostics } from '../policy/diagnostics.js';
+import { estimateTokens } from '../policy/metadata.js';
 import { truncateMarkdown } from '../policy/truncate.js';
 import { outputSchemaShape } from './output-schema.js';
 import {
@@ -108,6 +109,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     url,
     wordCount,
     readingTimeMin,
+    ...estimateTokens(textContent),
   };
 
   const sanitization: SanitizationDiagnostics = {

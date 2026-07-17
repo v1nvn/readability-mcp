@@ -1,6 +1,18 @@
 import type { Metadata } from '../pipeline/context.js';
 import type { ReadabilityParseResult } from '../pipeline/readability.js';
 
+export const TOKEN_ESTIMATOR = 'chars/4';
+
+export function estimateTokens(textContent: string): {
+  estimator: string;
+  tokenEstimate: number;
+} {
+  return {
+    tokenEstimate: Math.round(textContent.length / 4),
+    estimator: TOKEN_ESTIMATOR,
+  };
+}
+
 const ARTICLE_TYPES = new Set([
   'Article',
   'BlogPosting',
@@ -228,5 +240,6 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
     url: input.url,
     wordCount: input.wordCount,
     readingTimeMin: input.readingTimeMin,
+    ...estimateTokens(input.textContent),
   };
 }

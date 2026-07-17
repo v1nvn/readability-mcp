@@ -67,6 +67,8 @@ const METADATA_KEYS: readonly (keyof Metadata)[] = [
   'url',
   'wordCount',
   'readingTimeMin',
+  'tokenEstimate',
+  'estimator',
 ];
 
 function yamlFrontmatter(metadata: Readonly<Metadata>): string {

@@ -44,6 +44,18 @@ describe('html_to_markdown tool contracts', () => {
     expect(parsed.diagnostics.fallbackUsed).toBe(true);
     expect(parsed.diagnostics.extractedNode).toBe('fragment');
   });
+
+  it('emits tokenEstimate and estimator in structuredContent.metadata', () => {
+    const result = htmlToMarkdown({
+      html: '<h2>Heading</h2><p>some fragment text here</p>',
+      url: 'https://x.example/',
+    });
+    const metadata = result.structuredContent?.metadata as
+      | { estimator?: string; tokenEstimate?: number }
+      | undefined;
+    expect(typeof metadata?.tokenEstimate).toBe('number');
+    expect(metadata?.estimator).toBe('chars/4');
+  });
 });
 
 describe('outline tool contracts', () => {

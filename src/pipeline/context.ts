@@ -2,12 +2,14 @@ import type { ReadabilityParseResult } from './readability.js';
 
 export interface Metadata {
   readonly byline?: string;
+  readonly estimator?: string;
   readonly excerpt?: string;
   readonly lang?: string;
   readonly publishedTime?: string;
   readonly readingTimeMin?: number;
   readonly siteName?: string;
   readonly title?: string;
+  readonly tokenEstimate?: number;
   readonly url?: string;
   readonly wordCount?: number;
 }
