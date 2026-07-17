@@ -101,6 +101,23 @@ export const outputSchemaShape = {
         .describe(
           'True if Readability parse failed and a selector cascade salvaged content. Always true for html_to_markdown.',
         ),
+      gated: z
+        .object({
+          likely: z
+            .boolean()
+            .describe(
+              'True when heuristics strongly suggest the content is paywalled or truncated.',
+            ),
+          reason: z
+            .string()
+            .describe(
+              'Short label naming the detected signal (e.g. "paywall overlay", "metered paywall message").',
+            ),
+        })
+        .optional()
+        .describe(
+          'Likely paywall / gating signal. The extraction may be partial; the host can re-capture after authenticating. Detection only — this server never fetches or authenticates.',
+        ),
       imagesResolved: z
         .number()
         .int()

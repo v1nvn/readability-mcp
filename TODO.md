@@ -208,7 +208,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 - **Acceptance:** Paginated article fixture → `nextUrl` correct; infinite-scroll fixture → `type:"infinite"` + selector hint.
 
 ### QUAL-4 — Paywall / ad-overlay detection  · `Now` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Heuristics for likely paywall/overlay gating (truncated body + "subscribe" CTA, obscured content) → flag in diagnostics.
 - **Why:** Lets the host know the extraction may be partial *without* silently returning a short article as if complete.
 - **Lands at:** `policy/diagnostics.ts` field `gated: {likely: boolean, reason}`.

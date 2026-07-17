@@ -1,3 +1,4 @@
+import type { GatingSignal } from '../policy/gating.js';
 import type { PaginationSignal } from '../policy/pagination.js';
 import type { ReadabilityParseResult } from './readability.js';
 
@@ -25,6 +26,7 @@ export interface Diagnostics {
   readonly chromeRemoved?: number;
   readonly extractedNode?: string;
   readonly fallbackUsed: boolean;
+  readonly gated?: GatingSignal;
   readonly imagesResolved?: number;
   readonly pagination?: PaginationSignal;
   readonly readerable?: boolean;

@@ -15,6 +15,7 @@ import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
 import { assembleDiagnostics } from '../policy/diagnostics.js';
 import { extractViaFallback } from '../policy/fallback.js';
+import { detectGating } from '../policy/gating.js';
 import { resolveMetadata } from '../policy/metadata.js';
 import { detectPagination } from '../policy/pagination.js';
 import { resolveReadabilityOptions } from '../policy/resolver.js';
@@ -82,6 +83,10 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   } = args;
 
   const { document, window } = buildDocument(html, url);
+  // Paywall overlays are stripped by normalizeDocument's stripChrome (a Piano
+  // modal is role="dialog" + full-viewport fixed), so gating must be detected
+  // before normalization. Pagination chrome survives stripChrome and is detected after.
+  const gating = detectGating(document);
   const documentElementCount = document.querySelectorAll('*').length;
 
   const normalizeCounts = normalizeDocument(document, { cleanChrome });
@@ -183,6 +188,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     documentElementCount,
     extractedNode,
     fallbackUsed,
+    gated: gating,
     imagesResolved,
     pagination,
     readerable,

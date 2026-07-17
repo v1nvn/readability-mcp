@@ -2,6 +2,7 @@ import type {
   Diagnostics,
   SanitizationDiagnostics,
 } from '../pipeline/context.js';
+import type { GatingSignal } from './gating.js';
 import type { PaginationSignal } from './pagination.js';
 
 export interface DiagnosticsInput {
@@ -11,6 +12,7 @@ export interface DiagnosticsInput {
   readonly documentElementCount?: number;
   readonly extractedNode?: string;
   readonly fallbackUsed?: boolean;
+  readonly gated?: GatingSignal;
   readonly imagesResolved?: number;
   readonly pagination?: PaginationSignal;
   readonly readerable?: boolean;
@@ -44,6 +46,7 @@ export function assembleDiagnostics(
     readerable: input.readerable,
     extractedNode: input.extractedNode,
     fallbackUsed: input.fallbackUsed ?? false,
+    gated: input.gated,
     imagesResolved: input.imagesResolved,
     pagination: input.pagination,
     removedNodes,
