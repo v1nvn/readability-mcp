@@ -20,6 +20,7 @@ export interface SanitizationDiagnostics {
 }
 
 export interface Diagnostics {
+  readonly chromeRemoved?: number;
   readonly extractedNode?: string;
   readonly fallbackUsed: boolean;
   readonly imagesResolved?: number;

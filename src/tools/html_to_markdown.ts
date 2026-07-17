@@ -67,12 +67,13 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     sanitize: shouldSanitize,
     maxChars,
     wordsPerMinute,
+    cleanChrome,
   } = args;
 
   const { document, window } = buildDocument(html, url);
   const documentElementCount = document.querySelectorAll('*').length;
 
-  const normalizeCounts = normalizeDocument(document);
+  const normalizeCounts = normalizeDocument(document, { cleanChrome });
   const imagesResolved = resolveLazyImages(document);
   applySelectors(document, selectors);
 
@@ -118,6 +119,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
   };
   const baseDiagnostics = assembleDiagnostics({
     articleHtml: sanitizedHtml,
+    chromeRemoved: normalizeCounts.chromeRemoved,
     documentElementCount,
     extractedNode: EXTRACTED_NODE,
     fallbackUsed: true,

@@ -191,7 +191,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 - **Acceptance:** SPA fixture: placeholder `src` replaced with real URL; `diagnostics.imagesResolved` populated.
 
 ### QUAL-2 — Sticky / consent-banner stripping  · `Now` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Remove `position:fixed|sticky` chrome, cookie/consent/GDPR dialogs, and modal overlays before Readability scores.
 - **Why:** These poison Readability's density math and leak into the article. Near-universal pain on EU sites.
 - **Lands at:** `pipeline/normalize.ts` — remove nodes matching `[role="dialog"]`, common consent-banner selectors, and chrome overlays. Do **not** strip on `position:fixed|sticky` alone — that nukes legit fixed nav, sticky table headers, and back-to-top buttons. Require the conjunction of fixed/sticky **+ large viewport coverage + high z-index** (a true overlay), so navigation bars survive. Make it **tunable** (`cleanChrome: true` default) so it can be disabled when it over-strips.

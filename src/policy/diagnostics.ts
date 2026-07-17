@@ -5,6 +5,7 @@ import type {
 
 export interface DiagnosticsInput {
   readonly articleHtml?: string;
+  readonly chromeRemoved?: number;
   readonly document?: Document;
   readonly documentElementCount?: number;
   readonly extractedNode?: string;
@@ -43,6 +44,7 @@ export function assembleDiagnostics(
     fallbackUsed: input.fallbackUsed ?? false,
     imagesResolved: input.imagesResolved,
     removedNodes,
+    chromeRemoved: input.chromeRemoved,
     sanitization: input.sanitization,
     truncated: input.truncated ?? false,
   };

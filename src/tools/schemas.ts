@@ -28,6 +28,7 @@ export const readabilityOverridesSchema = z
   .optional();
 
 export const turndownOptionsShape = {
+  cleanChrome: z.boolean().default(true),
   codeBlockStyle: codeBlockStyleSchema.default('fenced'),
   format: formatSchema.default('markdown'),
   gfm: z.boolean().default(true),

@@ -17,6 +17,7 @@ export const outputSchemaShape = {
     wordCount: z.number().int().optional(),
   }),
   diagnostics: z.object({
+    chromeRemoved: z.number().int().optional(),
     extractedNode: z.string().optional(),
     fallbackUsed: z.boolean(),
     imagesResolved: z.number().int().optional(),

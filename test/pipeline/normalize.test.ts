@@ -1,5 +1,9 @@
 import { buildDocument } from '../../src/pipeline/dom.js';
-import { resolveLazyImages } from '../../src/pipeline/normalize.js';
+import {
+  normalizeDocument,
+  resolveLazyImages,
+  stripChrome,
+} from '../../src/pipeline/normalize.js';
 
 const DATA_GIF =
   'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -159,5 +163,153 @@ describe('resolveLazyImages: robustness', () => {
   it('does not throw on malformed markup', () => {
     const { document } = buildDocument('<html><body><img><div><picture');
     expect(() => resolveLazyImages(document)).not.toThrow();
+  });
+});
+
+describe('stripChrome: curated consent selectors', () => {
+  it('removes [role="dialog"]', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>body</p></article><div role="dialog">consent</div></body></html>',
+    );
+    expect(stripChrome(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('article')).not.toBeNull();
+  });
+
+  it('removes a curated .cookie-banner', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>body</p></article><div class="cookie-banner">We use cookies</div></body></html>',
+    );
+    expect(stripChrome(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('.cookie-banner')).toBeNull();
+  });
+
+  it('removes #onetrust-banner-sdk', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>body</p></article><div id="onetrust-banner-sdk">OneTrust</div></body></html>',
+    );
+    expect(stripChrome(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('#onetrust-banner-sdk')).toBeNull();
+  });
+
+  it('counts nested consent matches as one removal per live node', () => {
+    // Outer matches [role="dialog"], inner matches .cookie-banner — removing
+    // the outer detaches the inner; the inner must not be double-counted.
+    const { document } = buildDocument(
+      '<html><body><div role="dialog"><div class="cookie-banner">nested</div></div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(1);
+  });
+});
+
+describe('stripChrome: inline-style overlay heuristic', () => {
+  it('removes a full-viewport fixed overlay (width/height 100%)', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>body</p></article>' +
+        '<div style="position:fixed;width:100%;height:100%;z-index:9999">modal</div></body></html>',
+    );
+    expect(stripChrome(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('[style]')).toBeNull();
+  });
+
+  it('removes a full-viewport overlay using vw/vh', () => {
+    const { document } = buildDocument(
+      '<html><body><div style="position:fixed;width:100vw;height:100vh;z-index:5000">v</div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(1);
+    expect(document.querySelector('[style]')).toBeNull();
+  });
+
+  it('removes a full-viewport overlay using inset:0', () => {
+    const { document } = buildDocument(
+      '<html><body><div style="position:fixed;inset:0;z-index:5000">inset</div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(1);
+    expect(document.querySelector('[style]')).toBeNull();
+  });
+
+  it('removes a full-viewport overlay using left:0+right:0 and top:0+bottom:0', () => {
+    const { document } = buildDocument(
+      '<html><body><div style="position:fixed;left:0;right:0;top:0;bottom:0;z-index:2000">edges</div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(1);
+    expect(document.querySelector('[style]')).toBeNull();
+  });
+
+  it('PRESERVES a fixed top nav bar (full width, short height)', () => {
+    const { document } = buildDocument(
+      '<html><body><header style="position:fixed;top:0;width:100%;height:60px;z-index:1000">Brand</header>' +
+        '<article><p>body</p></article></body></html>',
+    );
+    expect(stripChrome(document)).toBe(0);
+    expect(document.querySelector('header')).not.toBeNull();
+    expect(document.querySelector('header')?.textContent).toBe('Brand');
+  });
+
+  it('PRESERVES a fixed element with high z-index but only width:100% (no full height)', () => {
+    const { document } = buildDocument(
+      '<html><body><div style="position:fixed;top:0;width:100%;z-index:9999">not an overlay</div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(0);
+    expect(document.querySelector('[style]')).not.toBeNull();
+  });
+
+  it('PRESERVES a sticky element with low z-index even if full-viewport', () => {
+    const { document } = buildDocument(
+      '<html><body><div style="position:sticky;inset:0;z-index:10">low z</div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(0);
+  });
+
+  it('PRESERVES a static-positioned full-size element', () => {
+    const { document } = buildDocument(
+      '<html><body><div style="position:static;width:100%;height:100%;z-index:9999">static</div></body></html>',
+    );
+    expect(stripChrome(document)).toBe(0);
+  });
+
+  it('PRESERVES article content and prose in every case', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>prose that must survive</p></article>' +
+        '<div role="dialog">banner</div></body></html>',
+    );
+    stripChrome(document);
+    expect(document.querySelector('article')).not.toBeNull();
+    expect(document.body.textContent).toContain('prose that must survive');
+    expect(document.body.textContent).not.toContain('banner');
+  });
+});
+
+describe('normalizeDocument: cleanChrome option', () => {
+  it('strips chrome and reports chromeRemoved by default', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>body</p></article><div role="dialog">x</div></body></html>',
+    );
+    const counts = normalizeDocument(document);
+    expect(counts.chromeRemoved).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('cleanChrome: false disables stripping and reports chromeRemoved = 0', () => {
+    const { document } = buildDocument(
+      '<html><body><article><p>body</p></article><div role="dialog">survives</div></body></html>',
+    );
+    const counts = normalizeDocument(document, { cleanChrome: false });
+    expect(counts.chromeRemoved).toBe(0);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.querySelector('[role="dialog"]')?.textContent).toBe(
+      'survives',
+    );
+  });
+
+  it('still strips scripts and base when cleanChrome is false', () => {
+    const { document } = buildDocument(
+      '<html><head><base href="/x"></head><body><script>var a = 1;</script></body></html>',
+    );
+    const counts = normalizeDocument(document, { cleanChrome: false });
+    expect(counts.chromeRemoved).toBe(0);
+    expect(counts.scripts).toBe(1);
+    expect(document.querySelector('script')).toBeNull();
+    expect(document.querySelector('base')).toBeNull();
   });
 });

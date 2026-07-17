@@ -1,11 +1,19 @@
 const NONCE_ATTR = 'nonce';
 
 export interface NormalizeCounts {
+  readonly chromeRemoved: number;
   readonly iframes: number;
   readonly scripts: number;
 }
 
-export function normalizeDocument(document: Document): NormalizeCounts {
+export interface NormalizeOptions {
+  readonly cleanChrome?: boolean;
+}
+
+export function normalizeDocument(
+  document: Document,
+  options?: NormalizeOptions,
+): NormalizeCounts {
   const baseEls = document.querySelectorAll('base');
   // Preserve <script type="application/ld+json">: structured metadata consumed by the cascade.
   const scriptEls = document.querySelectorAll(
@@ -24,7 +32,95 @@ export function normalizeDocument(document: Document): NormalizeCounts {
     el.removeAttribute(NONCE_ATTR);
   });
 
-  return { iframes: 0, scripts: scriptEls.length };
+  const chromeRemoved =
+    options?.cleanChrome === false ? 0 : stripChrome(document);
+
+  return { chromeRemoved, iframes: 0, scripts: scriptEls.length };
+}
+
+// Conservative, vendor-specific consent SDK selectors. Curated, not greedy —
+// intentionally NOT `[class*="consent"]` (that eats real article widgets).
+const CONSENT_SELECTORS = [
+  '[role="dialog"]',
+  '[aria-modal="true"]',
+  '#onetrust-banner-sdk',
+  '#onetrust-consent-sdk',
+  '#onetrust-pc-sdk',
+  '.cc-window',
+  '.cc-banner',
+  '.cc-revoke',
+  '.osano-cm-window',
+  '.osano-cm-dialog',
+  '.qc-cmp2-container',
+  '.qc-cmp-ui-container',
+  '#sp_message_container',
+  '[id^="sp_message_container_"]',
+  '#didomi-host',
+  '.didomi-popup-container',
+  '#truste-consent-track',
+  '#consent_blackbar',
+  '#cookie-banner',
+  '.cookie-banner',
+  '#consent-banner',
+  '.consent-banner',
+  '.cookie-bar',
+  '.gdpr-banner',
+  '.privacy-banner',
+];
+
+// jsdom has no layout, so "covers the viewport" must be inferred from inline
+// style. Requiring BOTH axes full is what protects a fixed nav bar: a nav is
+// full-width but its height is a fixed px (not 100%/100vh), and inset:0 is not
+// used. Dropping either axis from the conjunction nukes legit chrome.
+function isFullViewportOverlay(style: string): boolean {
+  if (!/position\s*:\s*(?:fixed|sticky)/i.test(style)) {
+    return false;
+  }
+  const zIndexMatch = /z-index\s*:\s*(\d+)/i.exec(style);
+  if (!zIndexMatch || Number.parseInt(zIndexMatch[1], 10) < 1000) {
+    return false;
+  }
+  // `inset:0` is shorthand for top/right/bottom/left = 0, so it satisfies BOTH
+  // axes at once and is checked up front.
+  if (/inset\s*:\s*0/i.test(style)) {
+    return true;
+  }
+  const widthFull =
+    /width\s*:\s*100(?:%|vw)/i.test(style) ||
+    (/left\s*:\s*0/i.test(style) && /right\s*:\s*0/i.test(style));
+  const heightFull =
+    /height\s*:\s*100(?:%|vh)/i.test(style) ||
+    (/top\s*:\s*0/i.test(style) && /bottom\s*:\s*0/i.test(style));
+  return widthFull && heightFull;
+}
+
+// Removes before Readability scores them — these poison density math and leak
+// into the article. Inline-style matches require the full isFullViewportOverlay
+// conjunction; `position:fixed` alone never qualifies.
+export function stripChrome(document: Document): number {
+  let removed = 0;
+
+  const consentEls = document.querySelectorAll(CONSENT_SELECTORS.join(','));
+  for (const el of consentEls) {
+    if (!el.isConnected) {
+      continue;
+    }
+    el.remove();
+    removed++;
+  }
+
+  const styledEls = document.querySelectorAll('[style]');
+  for (const el of styledEls) {
+    if (!el.isConnected) {
+      continue;
+    }
+    if (isFullViewportOverlay(el.getAttribute('style') ?? '')) {
+      el.remove();
+      removed++;
+    }
+  }
+
+  return removed;
 }
 
 export function applySelectorExclude(
