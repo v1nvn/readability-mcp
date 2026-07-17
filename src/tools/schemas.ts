@@ -181,7 +181,24 @@ export const outlineInputShape = {
 
 export const outlineInputSchema = z.object(outlineInputShape);
 
+export const extractMetadataInputShape = {
+  html: z
+    .string()
+    .describe(
+      'Already-rendered HTML (post-JavaScript) to resolve bibliographic metadata from. No Readability scoring, Turndown, or sanitization is applied — only <title>, <meta>, <link rel="canonical">, and JSON-LD are read.',
+    ),
+  url: z
+    .url()
+    .describe(
+      'Origin URL, carried through to metadata.url and used to absolutize links. NEVER fetched — origin context only.',
+    )
+    .optional(),
+} as const;
+
+export const extractMetadataInputSchema = z.object(extractMetadataInputShape);
+
 export type ExtractInput = z.infer<typeof extractInputSchema>;
+export type ExtractMetadataInput = z.infer<typeof extractMetadataInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
 export type OutlineInput = z.infer<typeof outlineInputSchema>;
 export type Selectors = z.infer<typeof selectorsSchema>;

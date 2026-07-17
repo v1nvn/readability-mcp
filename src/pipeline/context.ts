@@ -2,6 +2,7 @@ import type { ReadabilityParseResult } from './readability.js';
 
 export interface Metadata {
   readonly byline?: string;
+  readonly canonical?: string;
   readonly estimator?: string;
   readonly excerpt?: string;
   readonly lang?: string;

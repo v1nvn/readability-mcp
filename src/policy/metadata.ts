@@ -230,6 +230,16 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
     readability?.excerpt ?? undefined,
   );
 
+  // canonical/og:url are absolute by spec; returned raw so callers can tell
+  // the declared canonical apart from the input url (origin context only).
+  const canonical = first(
+    nonEmpty(
+      document.querySelector('link[rel="canonical"]')?.getAttribute('href') ??
+        undefined,
+    ),
+    metaProperty(document, 'og:url'),
+  );
+
   return {
     title,
     byline,
@@ -237,6 +247,7 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
     lang,
     publishedTime,
     excerpt,
+    canonical,
     url: input.url,
     wordCount: input.wordCount,
     readingTimeMin: input.readingTimeMin,

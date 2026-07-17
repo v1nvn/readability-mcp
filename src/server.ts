@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadConfig } from './config.js';
+import { registerExtractMetadataTool } from './tools/extract_metadata.js';
 import { registerExtractTool } from './tools/extract.js';
 import { registerHtmlToMarkdownTool } from './tools/html_to_markdown.js';
 import { registerOutlineTool } from './tools/outline.js';
@@ -19,6 +20,7 @@ export function createMcpServer(): McpServer {
 export function registerTools(server: McpServer): ToolHandle[] {
   return [
     registerExtractTool(server),
+    registerExtractMetadataTool(server),
     registerHtmlToMarkdownTool(server),
     registerOutlineTool(server),
   ];

@@ -64,6 +64,7 @@ const METADATA_KEYS: readonly (keyof Metadata)[] = [
   'lang',
   'publishedTime',
   'excerpt',
+  'canonical',
   'url',
   'wordCount',
   'readingTimeMin',

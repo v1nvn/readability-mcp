@@ -1,9 +1,17 @@
-import { outputSchema, outlineOutput } from '../../src/tools/output-schema.js';
+import {
+  extractMetadataDocument,
+  extractMetadataHandler,
+} from '../../src/tools/extract_metadata.js';
 import { extractArticle, extractHandler } from '../../src/tools/extract.js';
 import {
   htmlToMarkdown,
   htmlToMarkdownHandler,
 } from '../../src/tools/html_to_markdown.js';
+import {
+  extractMetadataOutput,
+  outputSchema,
+  outlineOutput,
+} from '../../src/tools/output-schema.js';
 import { outlineDocument, outlineHandler } from '../../src/tools/outline.js';
 
 const SPA_HTML =
@@ -72,5 +80,24 @@ describe('outline tool contracts', () => {
     expect(result.isError).toBeFalsy();
     const parsed = outlineOutput.parse(result.structuredContent);
     expect(parsed.outline.length).toBeGreaterThan(0);
+  });
+});
+
+describe('extract_metadata tool contracts', () => {
+  it('returns { isError: true } for invalid args and does not throw', () => {
+    const result = extractMetadataHandler({});
+    expect(result.isError).toBe(true);
+  });
+
+  it('validates structuredContent against the extract_metadata output schema and surfaces canonical', () => {
+    const result = extractMetadataDocument({
+      html: '<html><head><title>X</title><link rel="canonical" href="https://x.example/c"></head><body></body></html>',
+      url: 'https://x.example/',
+    });
+    expect(result.isError).toBeFalsy();
+    const parsed = extractMetadataOutput.parse(result.structuredContent);
+    expect(parsed.metadata.canonical).toBe('https://x.example/c');
+    expect(parsed.metadata.title).toBe('X');
+    expect(parsed.metadata.url).toBe('https://x.example/');
   });
 });

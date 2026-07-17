@@ -120,7 +120,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Acceptance:** Heading `"Authentication"` returns only that section's markdown on a docs fixture; equivalent to `selector:"#auth"`; the section ends at the next same-or-higher-level heading.
 
 ### TGT-8 — `extract_metadata` tool  · `Now` · S  ⚡ cheap — beside `outline`
-- [ ] Implement
+- [x] Implement
 - **What:** Return only the metadata object — `title, byline, siteName, lang, publishedTime, excerpt, canonical, url` — no markdown.
 - **Why:** Callers often want just the bibliographic info; today they must run full extraction to get it.
 - **Lands at:** Short-circuit the pipeline before Readability/Turndown and return `resolveMetadata` (`metadata.ts`) directly — `readability?` is already optional there, so this is mostly wiring. Adds one field: `canonical` (`<link rel="canonical">` → `og:url`), not in the cascade today.

@@ -55,7 +55,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All three tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All four tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -100,6 +100,17 @@ Returns the document outline (`h1`–`h6` in document order with stable anchor i
 | `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
 
 Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an indented-bullet TOC rendered into `content[0].text`, and `metadata = {title?, url?}` (`title` falls back from `<title>` to the first `<h1>`). Anchor precedence: the heading's own `id`, then a descendant permalink's `#fragment`, then a slug of the text (deduped `-1`, `-2`, … for generated slugs only — author ids are kept verbatim).
+
+### `extract_metadata` — bibliographic pre-check
+
+Returns only the bibliographic metadata — `title`, `byline`, `siteName`, `lang`, `publishedTime`, `excerpt`, `canonical`, `url` — without running Readability/Turndown, as a fast pre-check for crawlers and citation. Short-circuits the pipeline before the article body is scored; resolves the same metadata cascade as `extract` (JSON-LD → OpenGraph → Twitter → `<meta>`/`<time>` → `<title>`), plus `<link rel="canonical">` → `og:url` for `canonical`. The `url` field is the origin you passed in; `canonical` is the page's declared canonical — they often differ.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+
+Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, publishedTime?, excerpt?, canonical?, url?}` plus a human-readable `key: value` rendering in `content[0].text`. Note: `wordCount`/`readingTimeMin`/`tokenEstimate` are **not** populated by this tool — they are meaningless without the extracted body.
 
 ## Diagnostics
 

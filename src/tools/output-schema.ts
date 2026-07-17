@@ -1,5 +1,74 @@
 import { z } from 'zod';
 
+// Shared between `extract` and `extract_metadata` outputs so the metadata
+// cascade has one shape across tools. wordCount/readingTimeMin/tokenEstimate
+// are optional here — extract_metadata omits them; extract populates them.
+const metadataObjectSchema = z
+  .object({
+    byline: z
+      .string()
+      .optional()
+      .describe(
+        'Article author(s), resolved from JSON-LD, OpenGraph, <meta>, or Readability.',
+      ),
+    canonical: z
+      .string()
+      .optional()
+      .describe(
+        'Declared canonical URL from <link rel="canonical"> (or og:url as fallback). Distinct from url, which is the origin context passed in.',
+      ),
+    estimator: z
+      .string()
+      .optional()
+      .describe(
+        'Name of the heuristic backing tokenEstimate (e.g. "chars/4").',
+      ),
+    excerpt: z
+      .string()
+      .optional()
+      .describe('Short article summary produced by Readability.'),
+    lang: z.string().optional().describe('Detected document language.'),
+    publishedTime: z
+      .string()
+      .optional()
+      .describe(
+        'Publication timestamp resolved from JSON-LD, <meta>, or <time> elements.',
+      ),
+    readingTimeMin: z
+      .number()
+      .int()
+      .optional()
+      .describe(
+        'Estimated reading time in minutes, derived from wordCount and wordsPerMinute.',
+      ),
+    siteName: z
+      .string()
+      .optional()
+      .describe('Publishing site name, resolved from OpenGraph or <meta>.'),
+    title: z
+      .string()
+      .optional()
+      .describe(
+        'Article title, resolved by priority cascade (JSON-LD → OpenGraph → Twitter → <meta> → Readability → <title>).',
+      ),
+    tokenEstimate: z
+      .number()
+      .int()
+      .optional()
+      .describe(
+        'Rough output token count (chars/4 by default) for context budgeting.',
+      ),
+    url: z.string().optional().describe('The url passed in (origin context).'),
+    wordCount: z
+      .number()
+      .int()
+      .optional()
+      .describe('Number of whitespace-separated words in the extracted text.'),
+  })
+  .describe(
+    'Resolved article metadata. Each field is the first non-empty value across a priority cascade.',
+  );
+
 export const outputSchemaShape = {
   schemaVersion: z
     .literal(1)
@@ -11,72 +80,7 @@ export const outputSchemaShape = {
     .describe(
       'The human/LLM-readable payload — Markdown/html/text, or the serialized JSON when format=json.',
     ),
-  metadata: z
-    .object({
-      byline: z
-        .string()
-        .optional()
-        .describe(
-          'Article author(s), resolved from JSON-LD, OpenGraph, <meta>, or Readability.',
-        ),
-      estimator: z
-        .string()
-        .optional()
-        .describe(
-          'Name of the heuristic backing tokenEstimate (e.g. "chars/4").',
-        ),
-      excerpt: z
-        .string()
-        .optional()
-        .describe('Short article summary produced by Readability.'),
-      lang: z.string().optional().describe('Detected document language.'),
-      publishedTime: z
-        .string()
-        .optional()
-        .describe(
-          'Publication timestamp resolved from JSON-LD, <meta>, or <time> elements.',
-        ),
-      readingTimeMin: z
-        .number()
-        .int()
-        .optional()
-        .describe(
-          'Estimated reading time in minutes, derived from wordCount and wordsPerMinute.',
-        ),
-      siteName: z
-        .string()
-        .optional()
-        .describe('Publishing site name, resolved from OpenGraph or <meta>.'),
-      title: z
-        .string()
-        .optional()
-        .describe(
-          'Article title, resolved by priority cascade (JSON-LD → OpenGraph → Twitter → <meta> → Readability → <title>).',
-        ),
-      tokenEstimate: z
-        .number()
-        .int()
-        .optional()
-        .describe(
-          'Rough output token count (chars/4 by default) for context budgeting.',
-        ),
-      url: z
-        .string()
-        .optional()
-        .describe(
-          'The url passed in (origin context), or the article canonical URL when discoverable.',
-        ),
-      wordCount: z
-        .number()
-        .int()
-        .optional()
-        .describe(
-          'Number of whitespace-separated words in the extracted text.',
-        ),
-    })
-    .describe(
-      'Resolved article metadata. Each field is the first non-empty value across a priority cascade.',
-    ),
+  metadata: metadataObjectSchema,
   diagnostics: z
     .object({
       chromeRemoved: z
@@ -197,3 +201,23 @@ export const outlineOutputShape = {
 export const outlineOutput = z.object(outlineOutputShape);
 
 export type OutlineStructuredContent = z.infer<typeof outlineOutput>;
+
+export const extractMetadataOutputShape = {
+  schemaVersion: z
+    .literal(1)
+    .describe(
+      'Structured-content schema version. Bumps only on breaking shape changes to this object.',
+    ),
+  content: z
+    .string()
+    .describe(
+      'Human-readable key:value rendering of the metadata block, so content[0].text is never empty.',
+    ),
+  metadata: metadataObjectSchema,
+} as const;
+
+export const extractMetadataOutput = z.object(extractMetadataOutputShape);
+
+export type ExtractMetadataStructuredContent = z.infer<
+  typeof extractMetadataOutput
+>;
