@@ -215,7 +215,7 @@ Concrete correctness/quality improvements; SPAs are the motivation.
 - **Acceptance:** Soft-paywall fixture flagged; clean article not.
 
 ### QUAL-5 — Boilerplate dedup  · `Next (OBS-2-gated)` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Strip "related posts" / newsletter signup / "read next" blocks Readability sometimes retains.
 - **Why:** Reduces noise / token cost — but it's subtractive and the easiest way to silently delete useful info, so it ships *after* the recall work (RICH / TGT-4) against a richer baseline, benchmark-guarded (improve recall before precision).
 - **Lands at:** `pipeline/normalize.ts` post-Readability trim, or a `policy/trim.ts`. Careful: easy to over-strip — gate behind tests.

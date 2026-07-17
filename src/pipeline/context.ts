@@ -29,6 +29,7 @@ export interface SanitizationDiagnostics {
 }
 
 export interface Diagnostics {
+  readonly boilerplateRemoved?: number;
   readonly chromeRemoved?: number;
   readonly extractedNode?: string;
   readonly fallbackUsed: boolean;

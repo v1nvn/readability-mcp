@@ -89,6 +89,13 @@ export const outputSchemaShape = {
   metadata: metadataObjectSchema,
   diagnostics: z
     .object({
+      boilerplateRemoved: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          'Count of boilerplate blocks (related-posts, newsletter signup, read-next) stripped before conversion.',
+        ),
       chromeRemoved: z
         .number()
         .int()

@@ -3,6 +3,7 @@ import { KNOWN_LANGUAGE_TOKENS } from '../policy/resolver.js';
 const NONCE_ATTR = 'nonce';
 
 export interface NormalizeCounts {
+  readonly boilerplateRemoved: number;
   readonly chromeRemoved: number;
   readonly iframes: number;
   readonly scripts: number;
@@ -37,7 +38,14 @@ export function normalizeDocument(
   const chromeRemoved =
     options?.cleanChrome === false ? 0 : stripChrome(document);
 
-  return { chromeRemoved, iframes: 0, scripts: scriptEls.length };
+  const boilerplateRemoved = stripBoilerplate(document);
+
+  return {
+    boilerplateRemoved,
+    chromeRemoved,
+    iframes: 0,
+    scripts: scriptEls.length,
+  };
 }
 
 // Conservative, vendor-specific consent SDK selectors. Curated, not greedy —
@@ -122,6 +130,98 @@ export function stripChrome(document: Document): number {
     }
   }
 
+  return removed;
+}
+
+// Unambiguous boilerplate signatures. Bare `related`/`subscribe` are
+// intentionally excluded — they match legit content (related-products section
+// on a store, a "subscribe to RSS" line inside an article) far too often.
+// Substring matching means `newsletter` also covers `newsletter-signup`, etc.;
+// the longer spellings are kept as explicit documentation of intended targets.
+const BOILERPLATE_TOKENS = [
+  'newsletter',
+  'newsletter-signup',
+  'mailing-list',
+  'email-signup',
+  'subscribe-form',
+  'signup-form',
+  'related-posts',
+  'related-post',
+  'read-next',
+  'more-from',
+  'you-might-also',
+  'recommended-posts',
+  'recommended',
+];
+
+function signatureMatches(el: Element): boolean {
+  const signature =
+    `${el.getAttribute('class') ?? ''} ${el.getAttribute('id') ?? ''}`.toLowerCase();
+  return BOILERPLATE_TOKENS.some(token => signature.includes(token));
+}
+
+// A boilerplate block is always a structural CONTAINER. A heading or paragraph
+// can carry a token in its `id` (an anchor target like `id="related-posts"`) or
+// `class`, and individually such a leaf passes the footprint guard — so without
+// a container restriction the rule deletes real article content (e.g. an in-body
+// section heading whose id happens to match). Reject non-containers early.
+const BOILERPLATE_CONTAINER_TAGS = new Set([
+  'ASIDE',
+  'DIV',
+  'FORM',
+  'NAV',
+  'OL',
+  'SECTION',
+  'UL',
+]);
+
+// Strips "related posts" / newsletter signup / "read next" blocks Readability
+// sometimes retains. Subtractive and high-risk, so a token hit alone is never
+// enough: the footprint guard requires the candidate to be a small fraction of
+// the body. The body length is snapshotted once so every candidate is judged
+// against the same baseline — recomputing after each removal would make the
+// threshold depend on iteration order. A boilerplate block is always a small
+// slice of a real article; capping at 25% guarantees the worst case is leaving
+// a small block in, never deleting a section that is itself a substantial part
+// of the content. Idempotent and order-independent.
+//
+// Only outermost boilerplate roots are candidates. A single signature CONTAINER
+// (e.g. <aside class="newsletter-subscribe">) puts the token on every descendant
+// ("newsletter-title", "newsletter-submit", …); stripping those leaves
+// independently mangles the container when the footprint guard preserves the
+// root — a newsletter form shorn of its title and submit button. The ancestor
+// walk rejects any element whose class+id already matched on an ancestor.
+// querySelectorAll yields outer-before-inner order, and removing a root detaches
+// its descendants (caught by !isConnected above), so this walk uniformly rejects
+// leaves of both removed roots and preserved roots.
+export function stripBoilerplate(document: Document): number {
+  const bodyLength = document.body.textContent.length;
+  const limit = 0.25 * bodyLength;
+
+  let removed = 0;
+  for (const el of document.querySelectorAll('[class],[id]')) {
+    if (!el.isConnected) {
+      continue;
+    }
+    if (!BOILERPLATE_CONTAINER_TAGS.has(el.tagName)) {
+      continue;
+    }
+    if (!signatureMatches(el)) {
+      continue;
+    }
+    let ancestor: Element | null = el.parentElement;
+    while (ancestor && !signatureMatches(ancestor)) {
+      ancestor = ancestor.parentElement;
+    }
+    if (ancestor) {
+      continue;
+    }
+    if (el.textContent.length >= limit) {
+      continue;
+    }
+    el.remove();
+    removed++;
+  }
   return removed;
 }
 

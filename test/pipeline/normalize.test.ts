@@ -3,6 +3,7 @@ import {
   canonicalizeCodeBlocks,
   normalizeDocument,
   resolveLazyImages,
+  stripBoilerplate,
   stripChrome,
 } from '../../src/pipeline/normalize.js';
 
@@ -312,6 +313,175 @@ describe('normalizeDocument: cleanChrome option', () => {
     expect(counts.scripts).toBe(1);
     expect(document.querySelector('script')).toBeNull();
     expect(document.querySelector('base')).toBeNull();
+  });
+});
+
+// Long enough that a small boilerplate block is well under 25% of the body.
+const ARTICLE_PROSE =
+  '<p>' +
+  'This is a substantial article paragraph that carries real content. '.repeat(40) +
+  '</p>';
+
+describe('stripBoilerplate: curated signatures', () => {
+  it('removes an aside.related-posts and reports the count', () => {
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(
+        3,
+      )}</article>` +
+        '<aside class="related-posts"><h3>Related</h3><ul><li><a href="/a">A</a></li></ul></aside>' +
+        '</body></html>',
+    );
+    expect(stripBoilerplate(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('.related-posts')).toBeNull();
+    expect(document.querySelectorAll('article p').length).toBeGreaterThan(0);
+  });
+
+  it('removes a newsletter-signup block', () => {
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(
+        3,
+      )}</article>` +
+        '<aside class="newsletter-signup"><h3>Subscribe</h3><form><input><button>Go</button></form></aside>' +
+        '</body></html>',
+    );
+    expect(stripBoilerplate(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('.newsletter-signup')).toBeNull();
+  });
+
+  it('matches tokens in id, not just class', () => {
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(
+        3,
+      )}</article>` +
+        '<div id="read-next"><a href="/next">Next</a></div></body></html>',
+    );
+    expect(stripBoilerplate(document)).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('#read-next')).toBeNull();
+  });
+
+  it('leaves a clean article untouched (count is 0)', () => {
+    const { document } = buildDocument(
+      `<html><body><article><h1>Title</h1>${ARTICLE_PROSE}</article></body></html>`,
+    );
+    expect(stripBoilerplate(document)).toBe(0);
+    expect(document.querySelector('article')).not.toBeNull();
+  });
+
+  it('does not strip a heading whose id matches a token (anchor target, not a block)', () => {
+    // A section heading whose `id` is an anchor target (e.g. a real "Related
+    // posts" section in the article body) carries the token but is a leaf, not
+    // a boilerplate container — stripping it would delete article structure.
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(3)}` +
+        '<h2 id="related-posts">Related posts</h2>' +
+        '<p>section text that follows the heading</p>' +
+        `</article></body></html>`,
+    );
+    expect(stripBoilerplate(document)).toBe(0);
+    expect(document.querySelector('h2#related-posts')).not.toBeNull();
+  });
+
+  it('does not strip a paragraph whose class matches a token', () => {
+    // A <p> is never a boilerplate container. A token in its class (e.g. a
+    // newsletter-styled paragraph inside the article body) must survive.
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(3)}` +
+        '<p class="newsletter">A paragraph styled like a newsletter pitch but it is real article prose.</p>' +
+        `</article></body></html>`,
+    );
+    expect(stripBoilerplate(document)).toBe(0);
+    expect(document.querySelector('p.newsletter')).not.toBeNull();
+  });
+});
+
+describe('stripBoilerplate: footprint guard', () => {
+  it('PRESERVES a related-posts block that holds most of the body (>25%)', () => {
+    // The candidate carries the article body itself; the guard must refuse to
+    // strip it even though the signature matches.
+    const { document } = buildDocument(
+      '<html><body><article><p>tiny article</p></article>' +
+        '<div class="related-posts"><p>' +
+        'x'.repeat(2000) +
+        '</p></div></body></html>',
+    );
+    expect(stripBoilerplate(document)).toBe(0);
+    expect(document.querySelector('.related-posts')).not.toBeNull();
+  });
+
+  it('does not strip when the body is empty', () => {
+    const { document } = buildDocument(
+      '<html><body><div class="newsletter"></div></body></html>',
+    );
+    expect(stripBoilerplate(document)).toBe(0);
+  });
+
+  it('does not strip inner leaves of a preserved (too-large) boilerplate root', () => {
+    // A single boilerplate CONTAINER (here <aside class="newsletter-subscribe">)
+    // propagates the token to every descendant — the title, tagline, and submit
+    // button all carry a "newsletter-*" class. When the container is too large
+    // to strip, the leaves must NOT be stripped independently or the result is a
+    // mangled shell: a form with no title or submit button, but the large
+    // details div still hanging in the DOM.
+    const { document } = buildDocument(
+      '<html><body><article><p>real article body prose</p></article>' +
+        '<aside class="newsletter-subscribe">' +
+        '<h3 class="newsletter-title">Subscribe</h3>' +
+        '<p class="newsletter-tagline">Pitch</p>' +
+        '<button class="newsletter-submit">Go</button>' +
+        '<div class="newsletter-details">' +
+        'x'.repeat(2000) +
+        '</div>' +
+        '</aside></body></html>',
+    );
+    expect(stripBoilerplate(document)).toBe(0);
+    expect(document.querySelector('.newsletter-subscribe')).not.toBeNull();
+    expect(document.querySelector('.newsletter-title')).not.toBeNull();
+    expect(document.querySelector('.newsletter-submit')).not.toBeNull();
+    expect(document.querySelector('.newsletter-tagline')).not.toBeNull();
+  });
+});
+
+describe('stripBoilerplate: integration with normalizeDocument', () => {
+  it('runs regardless of cleanChrome (boilerplate is independent)', () => {
+    const html =
+      `<html><body><article>${ARTICLE_PROSE.repeat(
+        3,
+      )}</article>` +
+      '<aside class="newsletter"><p>small block</p></aside>' +
+      '<div role="dialog">chrome</div></body></html>';
+    const { document } = buildDocument(html);
+    const counts = normalizeDocument(document, { cleanChrome: false });
+    // cleanChrome:false preserves the dialog, but boilerplate still strips.
+    expect(counts.chromeRemoved).toBe(0);
+    expect(counts.boilerplateRemoved).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector('.newsletter')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it('reports boilerplateRemoved alongside chromeRemoved by default', () => {
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(
+        3,
+      )}</article>` +
+        '<div role="dialog">chrome</div>' +
+        '<aside class="related-post"><a href="/x">X</a></aside>' +
+        '</body></html>',
+    );
+    const counts = normalizeDocument(document);
+    expect(counts.chromeRemoved).toBeGreaterThanOrEqual(1);
+    expect(counts.boilerplateRemoved).toBeGreaterThanOrEqual(1);
+  });
+
+  it('is idempotent (second run removes nothing)', () => {
+    const { document } = buildDocument(
+      `<html><body><article>${ARTICLE_PROSE.repeat(
+        3,
+      )}</article>` +
+        '<aside class="newsletter"><p>x</p></aside></body></html>',
+    );
+    const first = stripBoilerplate(document);
+    expect(first).toBeGreaterThanOrEqual(1);
+    expect(stripBoilerplate(document)).toBe(0);
   });
 });
 

@@ -7,6 +7,7 @@ import type { PaginationSignal } from './pagination.js';
 
 export interface DiagnosticsInput {
   readonly articleHtml?: string;
+  readonly boilerplateRemoved?: number;
   readonly chromeRemoved?: number;
   readonly document?: Document;
   readonly documentElementCount?: number;
@@ -50,6 +51,7 @@ export function assembleDiagnostics(
     imagesResolved: input.imagesResolved,
     pagination: input.pagination,
     removedNodes,
+    boilerplateRemoved: input.boilerplateRemoved,
     chromeRemoved: input.chromeRemoved,
     sanitization: input.sanitization,
     truncated: input.truncated ?? false,

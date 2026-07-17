@@ -121,6 +121,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
   };
   const baseDiagnostics = assembleDiagnostics({
     articleHtml: sanitizedHtml,
+    boilerplateRemoved: normalizeCounts.boilerplateRemoved,
     chromeRemoved: normalizeCounts.chromeRemoved,
     documentElementCount,
     extractedNode: EXTRACTED_NODE,
