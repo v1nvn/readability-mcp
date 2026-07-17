@@ -68,6 +68,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     maxChars,
     wordsPerMinute,
     cleanChrome,
+    tables,
   } = args;
 
   const { document, window } = buildDocument(html, url);
@@ -96,6 +97,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     gfm,
     headingStyle,
     images,
+    tables,
     url,
   });
 

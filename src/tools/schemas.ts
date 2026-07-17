@@ -15,6 +15,7 @@ export const imageModeSchema = z.enum([
   'reference',
   'src-only',
 ]);
+export const tableFormatSchema = z.enum(['csv', 'gfm', 'json']);
 
 export const selectorsSchema = z
   .object({
@@ -95,6 +96,11 @@ export const turndownOptionsShape = {
       'Run DOMPurify over the extracted/fragment HTML before conversion (strips scripts, event handlers, and iframes).',
     )
     .default(true),
+  tables: tableFormatSchema
+    .describe(
+      'Render <table> elements via a rowspan/colspan-aware matrix: "gfm" (default native GFM table), "csv" (RFC-4180-ish code block), or "json" (array of row objects keyed by the header). When unset, tables pass through Turndown\'s native rule unchanged.',
+    )
+    .optional(),
   // zod v4 renamed `z.string().url()` to `z.url()`.
   url: z
     .url()

@@ -1,15 +1,21 @@
 import TurndownService from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
 
+import type { TableFormat } from '../policy/tables.js';
+
+import { parseTableMatrix, renderTable } from '../policy/tables.js';
+
 export type CodeBlockStyle = 'fenced' | 'indented';
 export type HeadingStyle = 'atx' | 'setext';
 export type ImageMode = 'drop' | 'keep' | 'reference' | 'src-only';
+export type { TableFormat };
 
 export interface TurndownOptions {
   readonly codeBlockStyle?: CodeBlockStyle;
   readonly gfm?: boolean;
   readonly headingStyle?: HeadingStyle;
   readonly images?: ImageMode;
+  readonly tables?: TableFormat;
   readonly url?: string;
 }
 
@@ -28,6 +34,29 @@ export function toMarkdown(
 
   if (options?.gfm !== false) {
     service.use(gfm);
+  }
+
+  const tableFormat = options?.tables;
+  if (tableFormat !== undefined) {
+    // addRule prepends, so this shadows the gfm plugin's table rule AND its
+    // headerless-table keep filter (which lives in a separate _keep list, only
+    // consulted when no rule in the array matches). Matching every TABLE here
+    // means the keep list is never reached for tables.
+    service.addRule('tableMatrix', {
+      filter: node => node.nodeName === 'TABLE',
+      replacement: (_content, node) => {
+        const matrix = parseTableMatrix(node);
+        if (matrix.length === 0) {
+          return '';
+        }
+        const body = renderTable(matrix, tableFormat);
+        // GFM rows are already markdown table syntax; csv/json need a fenced block.
+        if (tableFormat === 'gfm') {
+          return `\n\n${body}\n\n`;
+        }
+        return `\n\n\`\`\`${tableFormat}\n${body}\n\`\`\`\n\n`;
+      },
+    });
   }
 
   const imageMode = options?.images;

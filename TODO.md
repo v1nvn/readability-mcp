@@ -263,7 +263,7 @@ Make non-prose content LLM-readable.
 - **Acceptance:** Article-with-footnotes fixture → numbered refs resolve to a definitions list.
 
 ### RICH-3 — Tables → CSV/JSON option  · `Next` · S
-- [ ] Implement (shared serializer with TGT-5)
+- [x] Implement (shared serializer with TGT-5)
 - **What:** `tables: "gfm"|"csv"|"json"` output option on `extract`.
 - **Why:** Some callers want data, not rendered tables.
 - **Lands at:** `output/format.ts` + the TGT-5 matrix-IR serializer.

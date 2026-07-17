@@ -76,6 +76,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 | `headingStyle` | `atx` | `atx` (`#`) \| `setext` (underlining). |
 | `codeBlockStyle` | `fenced` | `fenced` (\`\`\`) \| `indented`. |
 | `images` | `keep` | `keep` \| `drop` \| `src-only` (bare URL) \| `reference` (link-ref style). |
+| `tables` | — | `gfm` (default, native) \| `csv` \| `json` — render `<table>` elements via a rowspan/colspan-aware matrix IR. `csv`/`json` emit fenced code blocks; `gfm` re-renders native tables so headerless and span-degenerate tables round-trip consistently. When unset, tables pass through Turndown's native rule. |
 | `sanitize` | `true` | Run DOMPurify on the article HTML. |
 | `maxChars` | — | Truncate the payload at a block boundary — **never inside a fenced code block**. |
 | `wordsPerMinute` | `200` | For `readingTimeMin`. |
@@ -88,7 +89,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 
 ### `html_to_markdown` — fragment path
 
-Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, and `url` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
+Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `tables`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, and `url` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
 
 ### `outline` — heading pre-check
 

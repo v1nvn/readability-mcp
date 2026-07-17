@@ -77,3 +77,49 @@ describe('anchor absolutization', () => {
     expect(md.trim()).toBe('empty');
   });
 });
+
+describe('turndown tables option', () => {
+  const rowspanHtml =
+    '<table><thead><tr><th>K</th><th>V</th></tr></thead>' +
+    '<tbody><tr><td rowspan="2">shared</td><td>a</td></tr>' +
+    '<tr><td>b</td></tr></tbody></table>';
+
+  it('renders a fenced csv block with the rowspan resolved when tables=csv', () => {
+    const md = toMarkdown(rowspanHtml, { tables: 'csv' });
+    expect(md).toContain('```csv');
+    // The rowspan leaves the skipped cell empty, not repeated.
+    expect(md).toContain('K,V');
+    expect(md).toContain('shared,a');
+    expect(md).toContain(',b');
+  });
+
+  it('renders a fenced json block when tables=json', () => {
+    const md = toMarkdown(rowspanHtml, { tables: 'json' });
+    expect(md).toContain('```json');
+    const fenced = md.match(/```json\n([\s\S]+?)\n```/);
+    expect(fenced).not.toBeNull();
+    const records = JSON.parse(fenced![1]!) as Record<string, string>[];
+    expect(records).toEqual([
+      { K: 'shared', V: 'a' },
+      { K: '', V: 'b' },
+    ]);
+  });
+
+  it('renders a native GFM table when tables=gfm', () => {
+    const md = toMarkdown(rowspanHtml, { tables: 'gfm' });
+    expect(md).not.toContain('```');
+    expect(md).toContain('| K | V |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| shared | a |');
+  });
+
+  it('leaves the stock gfm plugin handling tables when tables is unset (default unchanged)', () => {
+    const md = toMarkdown(
+      '<table><thead><tr><th>H1</th><th>H2</th></tr></thead>' +
+        '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
+    );
+    expect(md).toContain('| H1 | H2 |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).not.toContain('```');
+  });
+});

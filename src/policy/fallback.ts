@@ -1,5 +1,5 @@
 import type { SanitizationDiagnostics } from '../pipeline/context.js';
-import type { ImageMode } from '../pipeline/turndown.js';
+import type { ImageMode, TableFormat } from '../pipeline/turndown.js';
 
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
@@ -10,6 +10,7 @@ export interface FallbackOptions {
   readonly headingStyle?: 'atx' | 'setext';
   readonly images?: ImageMode;
   readonly sanitize: boolean;
+  readonly tables?: TableFormat;
   readonly url?: string;
   readonly window: Window;
 }
@@ -49,6 +50,7 @@ function convert(
     gfm: options.gfm,
     headingStyle: options.headingStyle,
     images: options.images,
+    tables: options.tables,
     url: options.url,
   });
   const textContent = element.textContent;

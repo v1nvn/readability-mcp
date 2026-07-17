@@ -80,6 +80,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     maxChars,
     wordsPerMinute,
     cleanChrome,
+    tables,
   } = args;
 
   const { document, window } = buildDocument(html, url);
@@ -140,6 +141,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       gfm,
       headingStyle,
       images,
+      tables,
       url,
     });
   } else {
@@ -150,6 +152,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       headingStyle,
       images,
       sanitize: shouldSanitize,
+      tables,
       url,
       window,
     });
