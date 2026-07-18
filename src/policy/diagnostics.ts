@@ -1,4 +1,5 @@
 import type {
+  CacheSignal,
   Diagnostics,
   SanitizationDiagnostics,
   TraceStage,
@@ -9,6 +10,7 @@ import type { PaginationSignal } from './pagination.js';
 export interface DiagnosticsInput {
   readonly articleHtml?: string;
   readonly boilerplateRemoved?: number;
+  readonly cache?: CacheSignal;
   readonly chromeRemoved?: number;
   readonly document?: Document;
   readonly documentElementCount?: number;
@@ -58,6 +60,7 @@ export function assembleDiagnostics(
     sanitization: input.sanitization,
     trace: input.trace,
     truncated: input.truncated ?? false,
+    ...(input.cache ? { cache: input.cache } : {}),
   };
 }
 

@@ -24,6 +24,7 @@ import { detectPagination } from '../policy/pagination.js';
 import { resolveReadabilityOptions } from '../policy/resolver.js';
 import { computeTextMetrics } from '../policy/text.js';
 import { truncateMarkdown } from '../policy/truncate.js';
+import * as cache from '../resources.js';
 import { outputSchemaShape } from './output-schema.js';
 import { extractInputSchema, extractInputShape } from './schemas.js';
 
@@ -38,6 +39,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   const {
     html,
     url,
+    cache: useCache,
     selectors,
     extraction,
     minArticleLength,
@@ -59,6 +61,36 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     imageInventory,
     debug,
   } = args;
+
+  // Cache hit short-circuits the pipeline. A clone is returned so the cache
+  // field can be overwritten to reflect *this* call's hashes (normalizedHash is
+  // stable across re-renders, but originalHash differs by nonce/CSP/…).
+  if (useCache) {
+    const hit = cache.lookup(html, args);
+    if (hit) {
+      const cloned = JSON.parse(
+        JSON.stringify(hit.entry.structuredContent),
+      ) as {
+        [key: string]: unknown;
+        diagnostics: Record<string, unknown>;
+      };
+      const structuredContent = {
+        ...cloned,
+        diagnostics: {
+          ...cloned.diagnostics,
+          cache: {
+            hit: true,
+            normalizedHash: hit.normalizedHash,
+            originalHash: hit.originalHash,
+          },
+        },
+      };
+      return {
+        content: [{ text: hit.entry.contentText, type: 'text' }],
+        structuredContent,
+      };
+    }
+  }
 
   // Stages are timed at the orchestrator boundary so they stay non-overlapping
   // and sum to the pipeline's wall-clock — stripConsent/absolutize live inside
@@ -252,16 +284,40 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     ? collectImageInventory(sanitizedHtml, window, url)
     : undefined;
 
+  const baseStructuredContent = {
+    schemaVersion: 1 as const,
+    content: payload,
+    metadata,
+    diagnostics,
+    ...(chunks ? { chunks } : {}),
+    ...(imageInventoryEntries ? { images: imageInventoryEntries } : {}),
+  };
+
+  // On cache miss (when cache:true), persist a cache-agnostic copy so the
+  // stored entry never carries a stale hit/miss verdict, then surface the
+  // signal on the returned object only.
+  let structuredContent = baseStructuredContent;
+  if (useCache) {
+    const stored = cache.storeResult(html, args, {
+      contentText: payload,
+      structuredContent: baseStructuredContent,
+    });
+    structuredContent = {
+      ...baseStructuredContent,
+      diagnostics: {
+        ...diagnostics,
+        cache: {
+          hit: false,
+          normalizedHash: stored.normalizedHash,
+          originalHash: stored.originalHash,
+        },
+      },
+    };
+  }
+
   return {
     content: [{ text: payload, type: 'text' }],
-    structuredContent: {
-      schemaVersion: 1,
-      content: payload,
-      metadata,
-      diagnostics,
-      ...(chunks ? { chunks } : {}),
-      ...(imageInventoryEntries ? { images: imageInventoryEntries } : {}),
-    },
+    structuredContent,
   };
 }
 

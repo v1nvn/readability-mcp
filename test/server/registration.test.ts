@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import {
   GetPromptResultSchema,
   ListPromptsResultSchema,
+  ListResourceTemplatesResultSchema,
   ListToolsResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
@@ -72,6 +73,14 @@ async function listPrompts(client: Client): Promise<string[]> {
     ListPromptsResultSchema,
   );
   return result.prompts.map(prompt => prompt.name).sort();
+}
+
+async function listResourceTemplateUris(client: Client): Promise<string[]> {
+  const result = await client.request(
+    { method: 'resources/templates/list' },
+    ListResourceTemplatesResultSchema,
+  );
+  return result.resourceTemplates.map(t => t.uriTemplate).sort();
 }
 
 async function getPromptText(
@@ -173,6 +182,16 @@ describe('prompt registration', () => {
     });
     expect(text).toContain('https://example.com');
     expect(text).toContain('extract');
+    await close();
+  });
+});
+
+describe('resource registration', () => {
+  it('createServer advertises the readability://page/{hash} template', async () => {
+    const { client, close } = await connect(createServer());
+    expect(await listResourceTemplateUris(client)).toEqual([
+      'readability://page/{hash}',
+    ]);
     await close();
   });
 });

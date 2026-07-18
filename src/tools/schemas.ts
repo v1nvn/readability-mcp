@@ -161,6 +161,12 @@ export const extractInputShape = {
     ),
   ...turndownOptionsShape,
 
+  cache: z
+    .boolean()
+    .describe(
+      'When true, cache the result keyed by a normalized hash of the HTML plus the output-affecting options; repeat calls with the same normalized HTML hit the cache and report diagnostics.cache (hit/miss + both hashes). The cache is in-memory and bounded; entries are also exposed as readability://page/{hash} resources.',
+    )
+    .default(false),
   extraction: extractionSchema
     .describe(
       "Readability scoring aggressiveness: 'balanced' (default), 'aggressive', or 'conservative'. Maps to Readability's scorer knobs.",

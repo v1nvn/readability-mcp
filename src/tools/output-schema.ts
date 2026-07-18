@@ -163,6 +163,28 @@ export const outputSchemaShape = {
         .describe(
           'Count of boilerplate blocks (related-posts, newsletter signup, read-next) stripped before conversion.',
         ),
+      cache: z
+        .object({
+          hit: z
+            .boolean()
+            .describe(
+              'True when this call was served from the in-memory cache without re-running the pipeline.',
+            ),
+          normalizedHash: z
+            .string()
+            .describe(
+              'sha256 of the volatility-normalized HTML (whitespace collapsed, scripts/nonce/CSP/generated ids stripped) — the actual cache key, shared across re-renders that differ only in volatile markup.',
+            ),
+          originalHash: z
+            .string()
+            .describe(
+              'sha256 of the raw HTML as passed (trimmed). Differs from normalizedHash when volatile markup (nonce/CSP/generated ids) was collapsed; equal when the input was already stable. Used to diagnose should-have-hit-but-didn’t misses.',
+            ),
+        })
+        .optional()
+        .describe(
+          'Cache signal — populated only by `extract` when called with cache:true. Absent otherwise (goldens, default path, and other tools never emit this field).',
+        ),
       chromeRemoved: z
         .number()
         .int()

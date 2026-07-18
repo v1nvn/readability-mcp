@@ -33,8 +33,15 @@ export interface TraceStage {
   readonly stage: string;
 }
 
+export interface CacheSignal {
+  readonly hit: boolean;
+  readonly normalizedHash: string;
+  readonly originalHash: string;
+}
+
 export interface Diagnostics {
   readonly boilerplateRemoved?: number;
+  readonly cache?: CacheSignal;
   readonly chromeRemoved?: number;
   readonly extractedNode?: string;
   readonly fallbackUsed: boolean;
