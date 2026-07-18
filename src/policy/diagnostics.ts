@@ -1,6 +1,7 @@
 import type {
   Diagnostics,
   SanitizationDiagnostics,
+  TraceStage,
 } from '../pipeline/context.js';
 import type { GatingSignal } from './gating.js';
 import type { PaginationSignal } from './pagination.js';
@@ -18,6 +19,7 @@ export interface DiagnosticsInput {
   readonly pagination?: PaginationSignal;
   readonly readerable?: boolean;
   readonly sanitization?: SanitizationDiagnostics;
+  readonly trace?: readonly TraceStage[];
   readonly truncated?: boolean;
   readonly window?: Window;
 }
@@ -54,6 +56,35 @@ export function assembleDiagnostics(
     boilerplateRemoved: input.boilerplateRemoved,
     chromeRemoved: input.chromeRemoved,
     sanitization: input.sanitization,
+    trace: input.trace,
     truncated: input.truncated ?? false,
   };
+}
+
+// Emits trace entries only when enabled, so the debug-off hot path allocates
+// nothing (the fn runs bare). Used by the orchestrator tools to time pipeline
+// stages without threading timers into lower layers.
+export class TraceCollector {
+  private readonly enabled: boolean;
+  private readonly entries: TraceStage[] = [];
+
+  constructor(enabled: boolean) {
+    this.enabled = enabled;
+  }
+
+  collect(): readonly TraceStage[] | undefined {
+    return this.enabled ? this.entries : undefined;
+  }
+
+  run<T>(stage: string, fn: () => T): T {
+    if (!this.enabled) {
+      return fn();
+    }
+    const start = performance.now();
+    try {
+      return fn();
+    } finally {
+      this.entries.push({ ms: performance.now() - start, stage });
+    }
+  }
 }

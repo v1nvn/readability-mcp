@@ -28,6 +28,11 @@ export interface SanitizationDiagnostics {
   readonly scripts: number;
 }
 
+export interface TraceStage {
+  readonly ms: number;
+  readonly stage: string;
+}
+
 export interface Diagnostics {
   readonly boilerplateRemoved?: number;
   readonly chromeRemoved?: number;
@@ -39,6 +44,7 @@ export interface Diagnostics {
   readonly readerable?: boolean;
   readonly removedNodes?: number;
   readonly sanitization?: SanitizationDiagnostics;
+  readonly trace?: readonly TraceStage[];
   readonly truncated: boolean;
 }
 

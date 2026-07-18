@@ -74,6 +74,12 @@ export const chunkOptionsSchema = z
   );
 
 export const turndownOptionsShape = {
+  debug: z
+    .boolean()
+    .describe(
+      'Emit per-stage timings (normalize, readability, sanitize, turndown, metadata) under diagnostics.trace. Debug-only — leaves trace absent by default.',
+    )
+    .default(false),
   cleanChrome: z
     .boolean()
     .describe(

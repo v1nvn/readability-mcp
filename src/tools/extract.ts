@@ -15,7 +15,7 @@ import { isReaderable, parseArticle } from '../pipeline/readability.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
 import { chunkMarkdown } from '../policy/chunk.js';
-import { assembleDiagnostics } from '../policy/diagnostics.js';
+import { assembleDiagnostics, TraceCollector } from '../policy/diagnostics.js';
 import { extractViaFallback } from '../policy/fallback.js';
 import { detectGating } from '../policy/gating.js';
 import { resolveMetadata } from '../policy/metadata.js';
@@ -55,37 +55,60 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     cleanChrome,
     tables,
     chunk,
+    debug,
   } = args;
+
+  // Stages are timed at the orchestrator boundary so they stay non-overlapping
+  // and sum to the pipeline's wall-clock — stripConsent/absolutize live inside
+  // normalize/turndown respectively and aren't carved out as their own stages.
+  const trace = new TraceCollector(debug);
 
   const { document, window } = buildDocument(html, url);
   // Paywall overlays are stripped by normalizeDocument's stripChrome (a Piano
   // modal is role="dialog" + full-viewport fixed), so gating must be detected
   // before normalization. Pagination chrome survives stripChrome and is detected after.
-  const gating = detectGating(document);
-  const documentElementCount = document.querySelectorAll('*').length;
-
-  const normalizeCounts = normalizeDocument(document, { cleanChrome });
-  const imagesResolved = resolveLazyImages(document);
-  // Detect before applySelectors: a caller's selectors.include could scope the
-  // body and hide pagination chrome, but "more content exists" is still true.
-  const pagination = detectPagination(document, url);
-  applySelectors(document, selectors);
-  const codeBlocksCanonicalized = canonicalizeCodeBlocks(document);
-  if (codeBlocksCanonicalized > 0) {
-    logger.debug(
-      `canonicalized ${codeBlocksCanonicalized} code-block language tag(s)`,
-    );
-  }
-
-  const readerable = isReaderable(document);
-  const readabilityOptions = resolveReadabilityOptions({
-    extraction,
-    keepClasses,
-    maxNodes,
-    minArticleLength,
-    readabilityOverrides,
+  const {
+    gating,
+    documentElementCount,
+    normalizeCounts,
+    imagesResolved,
+    pagination,
+  } = trace.run('normalize', () => {
+    const gating = detectGating(document);
+    const documentElementCount = document.querySelectorAll('*').length;
+    const normalizeCounts = normalizeDocument(document, { cleanChrome });
+    const imagesResolved = resolveLazyImages(document);
+    // Detect before applySelectors: a caller's selectors.include could scope the
+    // body and hide pagination chrome, but "more content exists" is still true.
+    const pagination = detectPagination(document, url);
+    applySelectors(document, selectors);
+    const codeBlocksCanonicalized = canonicalizeCodeBlocks(document);
+    if (codeBlocksCanonicalized > 0) {
+      logger.debug(
+        `canonicalized ${codeBlocksCanonicalized} code-block language tag(s)`,
+      );
+    }
+    return {
+      documentElementCount,
+      gating,
+      imagesResolved,
+      normalizeCounts,
+      pagination,
+    };
   });
-  const article = parseArticle(document, readabilityOptions);
+
+  const { readerable, article } = trace.run('readability', () => {
+    const readerable = isReaderable(document);
+    const readabilityOptions = resolveReadabilityOptions({
+      extraction,
+      keepClasses,
+      maxNodes,
+      minArticleLength,
+      readabilityOverrides,
+    });
+    const article = parseArticle(document, readabilityOptions);
+    return { article, readerable };
+  });
 
   let markdown: string;
   let sanitizedHtml: string;
@@ -98,38 +121,51 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     extractedNode = EXTRACTED_NODE;
     fallbackUsed = false;
     textContent = article.textContent ?? '';
-    let raw = article.content;
-    if (shouldSanitize) {
-      const res = sanitizeHtml(article.content, window);
-      raw = res.html;
-      sanitizeCounts = {
-        iframes: res.iframesRemoved,
-        scripts: res.scriptsRemoved,
-      };
-    } else {
-      sanitizeCounts = { iframes: 0, scripts: 0 };
-    }
-    sanitizedHtml = raw;
-    markdown = toMarkdown(sanitizedHtml, {
-      codeBlockStyle,
-      gfm,
-      headingStyle,
-      images,
-      tables,
-      url,
-    });
+    const articleHtml = article.content;
+    const sanitized = trace.run(
+      'sanitize',
+      (): {
+        counts: SanitizationDiagnostics;
+        html: string;
+      } => {
+        if (!shouldSanitize) {
+          return { counts: { iframes: 0, scripts: 0 }, html: articleHtml };
+        }
+        const res = sanitizeHtml(articleHtml, window);
+        return {
+          counts: { iframes: res.iframesRemoved, scripts: res.scriptsRemoved },
+          html: res.html,
+        };
+      },
+    );
+    sanitizedHtml = sanitized.html;
+    sanitizeCounts = sanitized.counts;
+    markdown = trace.run('turndown', () =>
+      toMarkdown(sanitizedHtml, {
+        codeBlockStyle,
+        gfm,
+        headingStyle,
+        images,
+        tables,
+        url,
+      }),
+    );
   } else {
     // Cascade only on parse failure, not on isProbablyReaderable.
-    const fallback = extractViaFallback(document, {
-      codeBlockStyle,
-      gfm,
-      headingStyle,
-      images,
-      sanitize: shouldSanitize,
-      tables,
-      url,
-      window,
-    });
+    // Fallback owns sanitize + turndown internally, so the two stages collapse
+    // into one timed block here — keeping the trace non-overlapping.
+    const fallback = trace.run('fallback', () =>
+      extractViaFallback(document, {
+        codeBlockStyle,
+        gfm,
+        headingStyle,
+        images,
+        sanitize: shouldSanitize,
+        tables,
+        url,
+        window,
+      }),
+    );
     if (!fallback) {
       throw new ExtractionError(
         'Readability returned no article and the selector cascade yielded no usable content.',
@@ -143,17 +179,20 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     sanitizeCounts = fallback.sanitization;
   }
 
-  const { wordCount, readingTimeMin } = computeTextMetrics(
-    textContent,
-    wordsPerMinute,
-  );
-  const metadata = resolveMetadata({
-    document,
-    readability: article,
-    readingTimeMin,
-    textContent,
-    url,
-    wordCount,
+  const { metadata } = trace.run('metadata', () => {
+    const { wordCount, readingTimeMin } = computeTextMetrics(
+      textContent,
+      wordsPerMinute,
+    );
+    const metadata = resolveMetadata({
+      document,
+      readability: article,
+      readingTimeMin,
+      textContent,
+      url,
+      wordCount,
+    });
+    return { metadata };
   });
 
   const sanitization: SanitizationDiagnostics = {
@@ -172,6 +211,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     pagination,
     readerable,
     sanitization,
+    trace: trace.collect(),
     truncated: false,
     window,
   });

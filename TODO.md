@@ -132,7 +132,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** A Readability bump produces a readable diff of affected fixtures.
 
 ### OBS-4 — Pipeline trace & timings  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Per-stage timings (`normalize`, `stripConsent`, `absolutize`, `readability`, `turndown`, `metadata`) and the ordered stage list, surfaced in `diagnostics.trace` only under a debug flag.
 - **Why:** Not for end-users — for future-us. When someone reports "this page is slow" or a benchmark regresses, the trace pinpoints the stage. Cheap to instrument (wrap each stage in `performance.now()`); OBS-2b consumes the same timings.
 - **Lands at:** `policy/diagnostics.ts` adds an optional `trace: { stage, ms }[]`, emitted only under a `debug` option — not a tool.

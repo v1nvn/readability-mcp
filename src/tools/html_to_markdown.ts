@@ -12,7 +12,7 @@ import {
 } from '../pipeline/normalize.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
-import { assembleDiagnostics } from '../policy/diagnostics.js';
+import { assembleDiagnostics, TraceCollector } from '../policy/diagnostics.js';
 import { computeTextMetrics, nonEmpty } from '../policy/text.js';
 import { truncateMarkdown } from '../policy/truncate.js';
 import { outputSchemaShape } from './output-schema.js';
@@ -43,46 +43,69 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     wordsPerMinute,
     cleanChrome,
     tables,
+    debug,
   } = args;
 
+  const trace = new TraceCollector(debug);
+
   const { document, window } = buildDocument(html, url);
-  const documentElementCount = document.querySelectorAll('*').length;
 
-  const normalizeCounts = normalizeDocument(document, { cleanChrome });
-  const imagesResolved = resolveLazyImages(document);
-  applySelectors(document, selectors);
-
-  const body = document.body;
-  const rawHtml = body.innerHTML;
-  const textContent = body.textContent;
-
-  let sanitizedHtml = rawHtml;
-  let sanitizeCounts: SanitizationDiagnostics = { iframes: 0, scripts: 0 };
-  if (shouldSanitize) {
-    const res = sanitizeHtml(rawHtml, window);
-    sanitizedHtml = res.html;
-    sanitizeCounts = {
-      iframes: res.iframesRemoved,
-      scripts: res.scriptsRemoved,
+  const {
+    documentElementCount,
+    normalizeCounts,
+    imagesResolved,
+    textContent,
+    rawHtml,
+  } = trace.run('normalize', () => {
+    const documentElementCount = document.querySelectorAll('*').length;
+    const normalizeCounts = normalizeDocument(document, { cleanChrome });
+    const imagesResolved = resolveLazyImages(document);
+    applySelectors(document, selectors);
+    const body = document.body;
+    return {
+      documentElementCount,
+      imagesResolved,
+      normalizeCounts,
+      rawHtml: body.innerHTML,
+      textContent: body.textContent,
     };
-  }
-  const markdown = toMarkdown(sanitizedHtml, {
-    codeBlockStyle,
-    gfm,
-    headingStyle,
-    images,
-    tables,
-    url,
   });
 
-  const firstHeading = nonEmpty(
-    body.querySelector('h1, h2, h3, h4, h5, h6')?.textContent,
+  const { html: sanitizedHtml, counts: sanitizeCounts } = trace.run(
+    'sanitize',
+    (): { counts: SanitizationDiagnostics; html: string } => {
+      if (!shouldSanitize) {
+        return { counts: { iframes: 0, scripts: 0 }, html: rawHtml };
+      }
+      const res = sanitizeHtml(rawHtml, window);
+      return {
+        counts: { iframes: res.iframesRemoved, scripts: res.scriptsRemoved },
+        html: res.html,
+      };
+    },
   );
-  const metadata = {
-    title: firstHeading,
-    url,
-    ...computeTextMetrics(textContent, wordsPerMinute),
-  };
+  const markdown = trace.run('turndown', () =>
+    toMarkdown(sanitizedHtml, {
+      codeBlockStyle,
+      gfm,
+      headingStyle,
+      images,
+      tables,
+      url,
+    }),
+  );
+
+  const { metadata } = trace.run('metadata', () => {
+    const firstHeading = nonEmpty(
+      document.body.querySelector('h1, h2, h3, h4, h5, h6')?.textContent,
+    );
+    const metadata = {
+      title: firstHeading,
+      url,
+      ...computeTextMetrics(textContent, wordsPerMinute),
+    };
+    return { metadata };
+  });
 
   const sanitization: SanitizationDiagnostics = {
     iframes: normalizeCounts.iframes + sanitizeCounts.iframes,
@@ -97,6 +120,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     fallbackUsed: true,
     imagesResolved,
     sanitization,
+    trace: trace.collect(),
     truncated: false,
     window,
   });

@@ -226,6 +226,27 @@ export const outputSchemaShape = {
       truncated: z
         .boolean()
         .describe('True if the payload was truncated by maxChars.'),
+      trace: z
+        .array(
+          z
+            .object({
+              stage: z
+                .string()
+                .describe(
+                  'Pipeline stage name (e.g. "normalize", "readability", "sanitize", "turndown", "metadata").',
+                ),
+              ms: z
+                .number()
+                .describe(
+                  'Wall-clock duration of the stage in milliseconds, measured via performance.now().',
+                ),
+            })
+            .describe('One timed pipeline stage.'),
+        )
+        .optional()
+        .describe(
+          'Per-stage timings emitted only when debug:true is passed to extract/html_to_markdown. Stages are non-overlapping and ordered; absent otherwise.',
+        ),
     })
     .describe(
       'Pipeline telemetry describing what was extracted, sanitized, and removed.',

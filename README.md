@@ -83,6 +83,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 | `keepClasses` | `false` | Retain all classes (default strips non-language classes). |
 | `readabilityOverrides` | — | Escape hatch — passed verbatim to `new Readability(doc, …)`. Unstable. |
 | `chunk` | — | Split the extracted markdown into token-bounded chunks (RAG/embedding-ready). `{maxTokens, overlap?, strategy?}` (strategy defaults to `semantic`) — when set, `structuredContent.chunks` is an array of `{index, text, tokenCount, headingContext}`. Only applies to `format:"markdown" \| "text"`; HTML/JSON payloads carry no markdown body to slice and leave `chunks` unset. |
+| `debug` | `false` | Emit `diagnostics.trace` with per-stage `{stage, ms}` timings (`normalize`, `readability`, `sanitize`, `turndown`, `metadata`). Debug-only — `trace` is absent otherwise. |
 
 **Fallback.** If Readability's `parse()` returns no article (e.g. an app shell or image-only page), a selector cascade salvages the first usable root — `article` → `main` → `[role=main]` → largest text-dense block → `body` — and reports `diagnostics.fallbackUsed: true` with `extractedNode` naming the root that was used.
 
@@ -90,7 +91,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 
 ### `html_to_markdown` — fragment path
 
-Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `tables`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, and `url` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
+Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `tables`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, `url`, and `debug` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
 
 ### `outline` — heading pre-check
 
@@ -141,7 +142,7 @@ Output shape: `structuredContent.chunks = [{index, text, tokenCount, headingCont
 
 ## Diagnostics
 
-`structuredContent.diagnostics` exposes: `readerable`, `extractedNode`, `fallbackUsed`, `removedNodes` (element delta vs. the document), `chromeRemoved` and `imagesResolved` (pre-conversion cleanup counts), `boilerplateRemoved` (related-posts / newsletter-signup / read-next blocks stripped before conversion, footprint-guarded so article content is never deleted), `sanitization.{scripts,iframes}` (counted across the **whole** pipeline), `pagination` (`{type:"paginated"|"infinite", nextUrl?, selector?}` — detection only; the host drives loading, this server never fetches), `gated` (`{likely, reason}` — detection only; signals a likely paywall/metered gate so the host knows the extraction may be partial — this server never fetches or authenticates), and `truncated`.
+`structuredContent.diagnostics` exposes: `readerable`, `extractedNode`, `fallbackUsed`, `removedNodes` (element delta vs. the document), `chromeRemoved` and `imagesResolved` (pre-conversion cleanup counts), `boilerplateRemoved` (related-posts / newsletter-signup / read-next blocks stripped before conversion, footprint-guarded so article content is never deleted), `sanitization.{scripts,iframes}` (counted across the **whole** pipeline), `pagination` (`{type:"paginated"|"infinite", nextUrl?, selector?}` — detection only; the host drives loading, this server never fetches), `gated` (`{likely, reason}` — detection only; signals a likely paywall/metered gate so the host knows the extraction may be partial — this server never fetches or authenticates), `truncated`, and `trace` (per-stage `{stage, ms}` timings — **debug-only**, emitted only when `debug:true` is passed to `extract`/`html_to_markdown`; absent otherwise). Stages are non-overlapping and ordered: `normalize`, `readability`, `sanitize`, `turndown`, `metadata` on the article path (`html_to_markdown` omits `readability`); on the fallback path a single `fallback` stage covers sanitize + turndown so the timings still sum to the pipeline's wall-clock.
 
 ## Rich content
 
