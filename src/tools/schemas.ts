@@ -370,9 +370,26 @@ export const extractTablesInputShape = {
 
 export const extractTablesInputSchema = z.object(extractTablesInputShape);
 
+export const extractListInputShape = {
+  html: z
+    .string()
+    .describe(
+      'Already-rendered HTML (post-JavaScript) of an index/search/blog-roll/HN-style page. No Readability scoring or Turndown is applied — the page is walked for a repeated same-shape sibling structure (e.g. <tr class="athing">, <li>, <article class="post">) each carrying a navigation anchor, and the winning cluster is returned as a list of items.',
+    ),
+  url: z
+    .url()
+    .describe(
+      'Origin URL for absolutizing item hrefs against. NEVER fetched — origin context only.',
+    )
+    .optional(),
+} as const;
+
+export const extractListInputSchema = z.object(extractListInputShape);
+
 export type ChunkTextInput = z.infer<typeof chunkTextInputSchema>;
 export type ExtractInput = z.infer<typeof extractInputSchema>;
 export type ExtractLinksInput = z.infer<typeof extractLinksInputSchema>;
+export type ExtractListInput = z.infer<typeof extractListInputSchema>;
 export type ExtractMetadataInput = z.infer<typeof extractMetadataInputSchema>;
 export type ExtractSectionInput = z.infer<typeof extractSectionInputSchema>;
 export type ExtractTablesInput = z.infer<typeof extractTablesInputSchema>;

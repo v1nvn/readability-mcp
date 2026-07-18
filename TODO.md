@@ -69,7 +69,7 @@ Readability only extracts "the article." Half the web isn't an article.
 | TGT-9 | Image inventory | Near | S | output option on `extract` |
 
 ### TGT-3 — `extract_list` / feed mode  · `Future` · L
-- [ ] Scope heuristics · [ ] Implement
+- [x] Scope heuristics · [x] Implement
 - **What:** For index/search/blog-roll/HN-style pages, return `[{title, url, snippet, score}]` instead of one article.
 - **Why:** Readability is article-only; this handles the other half of pages. Biggest "unlock" in the backlog.
 - **Lands at:** New tool `extract_list({html, url?})` + a `policy/list-detector.ts` (detect repeated item structure — `<li>`/`<article>`/`<tr>` siblings with a link + text). Falls back to "not a list" signal in diagnostics.

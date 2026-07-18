@@ -519,3 +519,92 @@ export const extractTablesOutput = z.object(extractTablesOutputShape);
 export type ExtractTablesStructuredContent = z.infer<
   typeof extractTablesOutput
 >;
+
+const listItemSchema = z
+  .object({
+    score: z
+      .number()
+      .int()
+      .describe(
+        'Item substance score: primary-anchor text length + non-link body text length. Long titles (real feed items) score higher than short nav labels; items with both a long title and surrounding body text (snippets, excerpts) score highest.',
+      ),
+    snippet: z
+      .string()
+      .describe(
+        'Item body text with the title peeled off, whitespace-collapsed and clipped at 200 chars. Empty when the item is title-only.',
+      ),
+    title: z
+      .string()
+      .describe(
+        'Primary anchor text (longest-text <a> in the item, whitespace-collapsed). Falls back to the first heading text only when no anchor has text.',
+      ),
+    url: z
+      .string()
+      .describe(
+        'Absolute href of the primary anchor, resolved against url. Empty when the anchor has no href.',
+      ),
+  })
+  .describe('One detected list item with its title, URL, snippet, and score.');
+
+export const extractListOutputShape = {
+  schemaVersion: z
+    .literal(1)
+    .describe(
+      'Structured-content schema version. Bumps only on breaking shape changes to this object.',
+    ),
+  content: z
+    .string()
+    .describe(
+      'Readable rendering of the items (one numbered `title — url` line per item, each followed by an indented snippet), or a single `not a list: …` line when no list structure is detected.',
+    ),
+  items: z
+    .array(listItemSchema)
+    .describe(
+      'Detected list items in document order. Empty when the page has no repeated same-shape sibling structure with anchors (e.g. article pages).',
+    ),
+  diagnostics: z
+    .object({
+      confidence: z
+        .enum(['high', 'low', 'medium'])
+        .describe(
+          '`high` when ≥6 items and avg score ≥30, `medium` when ≥3 items, `low` otherwise. `low` for non-list pages.',
+        ),
+      containerSelector: z
+        .string()
+        .describe(
+          'CSS-ish hint (tag#id.class) of the winning container. Empty when not detected.',
+        ),
+      detected: z
+        .boolean()
+        .describe(
+          'True when a list/feed/index structure was found (≥3 same-shape siblings each with a navigation anchor, outside nav/header/footer/aside).',
+        ),
+      itemCount: z
+        .number()
+        .int()
+        .describe('Number of items emitted. 0 when not detected.'),
+      itemTag: z
+        .string()
+        .describe(
+          'Uppercase DOM tag name of the winning sibling group (e.g. "TR", "LI", "ARTICLE", "DIV"). Empty when not detected.',
+        ),
+      note: z
+        .string()
+        .describe(
+          'Short human-readable status: the detection reason when detected, or the rejection reason when not.',
+        ),
+    })
+    .describe('List-detection telemetry describing the winning candidate.'),
+  metadata: z
+    .object({
+      url: z
+        .string()
+        .optional()
+        .describe('The url passed in (origin context, never fetched).'),
+    })
+    .describe('Extract-list document metadata.'),
+} as const;
+
+export const extractListOutput = z.object(extractListOutputShape);
+
+export type ExtractListStructuredContent = z.infer<typeof extractListOutput>;

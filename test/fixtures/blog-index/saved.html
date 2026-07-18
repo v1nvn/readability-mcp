@@ -1,0 +1,55 @@
+<html lang="en"><head>
+  <title>Acme Engineering Blog</title>
+  <meta name="description" content="Notes on infrastructure, distributed systems, and the bugs in between.">
+</head><body>
+<header class="site-header">
+  <a href="/" rel="home">Acme Engineering</a>
+  <nav aria-label="Primary">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/archive">Archive</a></li>
+    </ul>
+  </nav>
+</header>
+<main>
+  <h1>Recent Posts</h1>
+  <article class="post">
+    <h2 class="post-title"><a href="https://example.com/post-1" rel="bookmark">Designing a backpressure-aware job queue</a></h2>
+    <p class="post-meta"><time datetime="2026-07-02">July 2, 2026</time> · 8 min read</p>
+    <p class="post-excerpt">When a downstream service slows down, an honest queue tells upstream callers to slow down too. We walk through theLittle's Law arithmetic behind our bounded queue and the metrics we watch.</p>
+  </article>
+  <article class="post">
+    <h2 class="post-title"><a href="https://example.com/post-2" rel="bookmark">What we learned shipping structured logs</a></h2>
+    <p class="post-meta"><time datetime="2026-06-18">June 18, 2026</time> · 12 min read</p>
+    <p class="post-excerpt">Structured logs were supposed to make observability easier. They did — after we paid down three years of inconsistent field names. Here is the migration plan that worked.</p>
+  </article>
+  <article class="post">
+    <h2 class="post-title"><a href="https://example.com/post-3" rel="bookmark">A pragmatic guide to feature flags</a></h2>
+    <p class="post-meta"><time datetime="2026-06-04">June 4, 2026</time> · 6 min read</p>
+    <p class="post-excerpt">Feature flags buy you decoupled deploy and release, but they also buy you a forked codebase forever. We share the rules we use to keep the flag count bounded.</p>
+  </article>
+  <article class="post">
+    <h2 class="post-title"><a href="https://example.com/post-4" rel="bookmark">Why we stopped using ORMs</a></h2>
+    <p class="post-meta"><time datetime="2026-05-21">May 21, 2026</time> · 10 min read</p>
+    <p class="post-excerpt">ORMs promised to make SQL optional. After three years of N+1 queries and inscrutable generated plans, we went back to hand-written queries and never looked back.</p>
+  </article>
+  <article class="post">
+    <h2 class="post-title"><a href="https://example.com/post-5" rel="bookmark">Postmortem: the certificate renewal that wasn't</a></h2>
+    <p class="post-meta"><time datetime="2026-05-07">May 7, 2026</time> · 7 min read</p>
+    <p class="post-excerpt">A 60-day certificate quietly became a 0-day outage. The cron job ran, the alert didn't fire, and the failover target had already expired. Lessons from a quiet incident.</p>
+  </article>
+  <article class="post">
+    <h2 class="post-title"><a href="https://example.com/post-6" rel="bookmark">Reading the Postgres EXPLAIN output, for real</a></h2>
+    <p class="post-meta"><time datetime="2026-04-23">April 23, 2026</time> · 14 min read</p>
+    <p class="post-excerpt">EXPLAIN ANALYZE dumps a wall of numbers. We translate each one — sequential scans, nested loops, bitmap index scans — into a story about what the planner was thinking.</p>
+  </article>
+</main>
+<footer class="site-footer">
+  <nav aria-label="Site">
+    <a href="/feed.xml">RSS</a>
+    <a href="/privacy">Privacy</a>
+  </nav>
+  <p>© 2026 Acme Engineering</p>
+</footer>
+</body></html>

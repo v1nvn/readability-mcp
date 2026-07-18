@@ -1,0 +1,10 @@
+[
+  { "title": "Show HN: A new approach to list detection", "url": "https://example.com/story-1" },
+  { "title": "The case against microservices for small teams", "url": "https://example.com/story-2" },
+  { "title": "Ask HN: How do you version your internal APIs?", "url": "https://example.com/story-3" },
+  { "title": "A deep dive into PostgreSQL query planning", "url": "https://example.com/story-4" },
+  { "title": "Why your CI pipeline is slow (and how to fix it)", "url": "https://example.com/story-5" },
+  { "title": "Lessons from running a solo SaaS for five years", "url": "https://example.com/story-6" },
+  { "title": "The hidden cost of dependency injection frameworks", "url": "https://example.com/story-7" },
+  { "title": "Building a type-safe ORM in TypeScript from scratch", "url": "https://example.com/story-8" }
+]

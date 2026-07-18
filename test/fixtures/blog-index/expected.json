@@ -1,0 +1,8 @@
+[
+  { "title": "Designing a backpressure-aware job queue", "url": "https://example.com/post-1" },
+  { "title": "What we learned shipping structured logs", "url": "https://example.com/post-2" },
+  { "title": "A pragmatic guide to feature flags", "url": "https://example.com/post-3" },
+  { "title": "Why we stopped using ORMs", "url": "https://example.com/post-4" },
+  { "title": "Postmortem: the certificate renewal that wasn't", "url": "https://example.com/post-5" },
+  { "title": "Reading the Postgres EXPLAIN output, for real", "url": "https://example.com/post-6" }
+]

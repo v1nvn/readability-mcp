@@ -100,7 +100,7 @@ async function getPromptText(
 }
 
 describe('tool registration', () => {
-  it('registerTools advertises the nine tools over tools/list', async () => {
+  it('registerTools advertises the ten tools over tools/list', async () => {
     const server = createMcpServer();
     registerTools(server);
     const { client, close } = await connect(server);
@@ -109,6 +109,7 @@ describe('tool registration', () => {
       'explain',
       'extract',
       'extract_links',
+      'extract_list',
       'extract_metadata',
       'extract_section',
       'extract_tables',
@@ -142,6 +143,7 @@ describe('tool registration', () => {
       'explain',
       'extract',
       'extract_links',
+      'extract_list',
       'extract_metadata',
       'extract_section',
       'extract_tables',
@@ -151,13 +153,14 @@ describe('tool registration', () => {
     await close();
   });
 
-  it('createServer registers all nine', async () => {
+  it('createServer registers all ten', async () => {
     const { client, close } = await connect(createServer());
     expect(await listTools(client)).toEqual([
       'chunk_text',
       'explain',
       'extract',
       'extract_links',
+      'extract_list',
       'extract_metadata',
       'extract_section',
       'extract_tables',

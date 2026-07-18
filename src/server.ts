@@ -6,6 +6,7 @@ import { registerResources } from './resources.js';
 import { registerChunkTextTool } from './tools/chunk_text.js';
 import { registerExplainTool } from './tools/explain.js';
 import { registerExtractLinksTool } from './tools/extract_links.js';
+import { registerExtractListTool } from './tools/extract_list.js';
 import { registerExtractMetadataTool } from './tools/extract_metadata.js';
 import { registerExtractSectionTool } from './tools/extract_section.js';
 import { registerExtractTablesTool } from './tools/extract_tables.js';
@@ -34,6 +35,7 @@ export function registerTools(server: McpServer): ToolHandle[] {
     registerChunkTextTool(server),
     registerExplainTool(server),
     registerExtractLinksTool(server),
+    registerExtractListTool(server),
     registerExtractTool(server),
     registerExtractMetadataTool(server),
     registerExtractSectionTool(server),
