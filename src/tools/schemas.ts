@@ -296,10 +296,52 @@ export const chunkTextInputShape = {
 
 export const chunkTextInputSchema = z.object(chunkTextInputShape);
 
+export const extractSectionInputShape = {
+  html: z
+    .string()
+    .describe(
+      'Already-rendered HTML (post-JavaScript) to extract one section from. Routed through extract’s selectors.include path — selector mode passes straight through; heading mode wraps the matched subtree first. This is the ONLY input the server reads; it makes no outbound requests.',
+    ),
+  url: z
+    .url()
+    .describe(
+      'Origin URL for absolutizing relative links and images. NEVER fetched — origin context only.',
+    )
+    .optional(),
+  selector: z
+    .string()
+    .describe(
+      'CSS selector scoping extraction to one subtree; passed straight through as selectors.include. Provide exactly one of selector/heading.',
+    )
+    .optional(),
+  heading: z
+    .string()
+    .describe(
+      'Heading text selecting one section; the section spans from this heading to the next same-or-higher-level heading. Case-insensitive; first match wins. Provide exactly one of selector/heading.',
+    )
+    .optional(),
+} as const;
+
+export const extractSectionInputSchema = z
+  .object(extractSectionInputShape)
+  .superRefine((value, ctx) => {
+    const hasSelector = value.selector !== undefined;
+    const hasHeading = value.heading !== undefined;
+    if (hasSelector === hasHeading) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Provide exactly one of `selector` or `heading` (both set or both unset is invalid).',
+        path: ['selector'],
+      });
+    }
+  });
+
 export type ChunkTextInput = z.infer<typeof chunkTextInputSchema>;
 export type ExtractInput = z.infer<typeof extractInputSchema>;
 export type ExtractLinksInput = z.infer<typeof extractLinksInputSchema>;
 export type ExtractMetadataInput = z.infer<typeof extractMetadataInputSchema>;
+export type ExtractSectionInput = z.infer<typeof extractSectionInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
 export type OutlineInput = z.infer<typeof outlineInputSchema>;
 export type Selectors = z.infer<typeof selectorsSchema>;

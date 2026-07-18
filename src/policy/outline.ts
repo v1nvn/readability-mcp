@@ -6,7 +6,7 @@ export interface OutlineEntry {
 
 // Collapse whitespace, trim, then strip leading/trailing `#` (GitHub permalinks
 // append `<a>#</a>`, so heading textContent ends with `#`).
-function normalizeText(raw: string): string {
+export function normalizeHeadingText(raw: string): string {
   const collapsed = raw.replace(/\s+/g, ' ').trim();
   return collapsed.replace(/^#+|#+$/g, '').trim();
 }
@@ -78,7 +78,7 @@ export function resolveOutline(document: Document): OutlineEntry[] {
     if (!rawText.trim()) {
       return;
     }
-    const text = normalizeText(rawText);
+    const text = normalizeHeadingText(rawText);
     const level = Number.parseInt(heading.tagName.slice(1), 10);
     const { anchor: candidate, explicit } = resolveCandidate(heading, text);
     const anchor = dedupe(candidate, explicit, used);

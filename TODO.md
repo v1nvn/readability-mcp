@@ -84,7 +84,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Acceptance:** Round-trips a table with `rowspan/colspan` (document degenerate-cell handling); CSV quoted correctly; captures tables outside the article body.
 
 ### TGT-7 — `extract_section` tool  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Return only one section of a document, selected by CSS selector **or** by heading text (`extract_section({html, url?, selector?, heading?})`).
 - **Why:** "Give me just the Authentication section" on a long doc, without paying for full extraction.
 - **Lands at:** A **thin resolver over the existing `selectors.include` path** (`extract.ts`), not a new extractor. Selector mode calls straight through; heading mode uses the `outline` policy to map the heading to its subtree, then scopes `include` to it. No parallel extraction logic.

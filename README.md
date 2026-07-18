@@ -55,7 +55,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All six tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All seven tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -92,6 +92,19 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 ### `html_to_markdown` — fragment path
 
 Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `tables`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, `url`, and `debug` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
+
+### `extract_section` — one section by selector or heading
+
+Returns just one section of a document — "give me the Authentication section" on a long doc without paying for full extraction. A thin resolver over `extract`'s `selectors.include` path, not a new extractor: selector mode passes straight through, and heading mode wraps the matched subtree in `<section data-rdrm-section-scope>` before routing through the same `selectors.include` path.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; used to absolutize relative links/images. |
+| `selector` | — | CSS selector scoping extraction to one subtree; passed straight through as `selectors.include`. Provide exactly one of `selector`/`heading`. |
+| `heading` | — | Heading text selecting one section; the section spans from this heading to the next same-or-higher-level heading. Case-insensitive; first exact match wins, falling back to the first substring contain. Provide exactly one of `selector`/`heading`. |
+
+Output shape is the same as `extract` (`content`, `metadata`, `diagnostics`). Heading mode is equivalent to selector mode on the same subtree: `heading: "Authentication"` discovers the same boundary a wrapping `<section id="auth">…</section>` would expose via `selector: "#auth"`. A non-matching heading yields `{ "isError": true }` with `no heading matched: <query>`.
 
 ### `outline` — heading pre-check
 
