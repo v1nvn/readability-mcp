@@ -166,7 +166,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** Same HTML twice → second call served from cache (diagnostics/cache hit); different nonce → still a hit.
 
 ### OPS-3 — CLI  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** `readability-mcp extract file.html [--format md|json|html] [--max-chars N] [--stdin]`. Reads from stdin when no file is given (so `cat page.html | readability-mcp extract` works); `--stdin` is an explicit no-op alias for discoverability.
 - **Why:** Free DX for non-MCP use (scripts, one-offs); reuses the exact same pipeline.
 - **Lands at:** `src/cli.ts` behind a `bin` entry (`readability-mcp` dispatches: no args = MCP server, `extract` = CLI).
