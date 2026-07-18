@@ -118,7 +118,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** On a mis-extracted fixture, `explain` shows *why* the wrong node won.
 
 ### OBS-2b — Full benchmark harness  · `Next` · L  ⚡ keystone
-- [ ] Implement
+- [x] Implement
 - **What:** The scaffold shipped (labeled fixtures + per-PR content-delta + size/token/fidelity metrics via `npm run bench`). This is the remaining half: precision/recall of the extracted main-content boundary vs human-labeled regions, aggregate scoring across the fixture taxonomy.
 - **Why:** This is how you *prove* an option actually helps instead of guessing — required to ship TGT-3 (list detection) confidently.
 - **Lands at:** `test/bench/` — extends the shipped metrics script with boundary labels + a precision/recall scorer, run in CI on the dedicated (non-blocking) bench job. Per-stage timings come from OBS-4.
