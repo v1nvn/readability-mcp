@@ -343,11 +343,33 @@ export const extractSectionInputSchema = z
     }
   });
 
+export const extractTablesInputShape = {
+  html: z
+    .string()
+    .describe(
+      'Already-rendered HTML (post-JavaScript) to walk for tables. No Readability scoring, Turndown, or sanitization is applied — every <table> in the parsed DOM is rendered, including tables outside the article body that the `tables` option on `extract` would never see.',
+    ),
+  url: z
+    .url()
+    .describe(
+      'Origin URL, carried through to metadata.url. NEVER fetched — origin context only.',
+    )
+    .optional(),
+  format: tableFormatSchema
+    .describe(
+      'Output format for every table: "gfm" (default — native GFM table with a delimiter row), "csv" (RFC-4180-ish, quoted fields), or "json" (array of row objects keyed by the header row).',
+    )
+    .default('gfm'),
+} as const;
+
+export const extractTablesInputSchema = z.object(extractTablesInputShape);
+
 export type ChunkTextInput = z.infer<typeof chunkTextInputSchema>;
 export type ExtractInput = z.infer<typeof extractInputSchema>;
 export type ExtractLinksInput = z.infer<typeof extractLinksInputSchema>;
 export type ExtractMetadataInput = z.infer<typeof extractMetadataInputSchema>;
 export type ExtractSectionInput = z.infer<typeof extractSectionInputSchema>;
+export type ExtractTablesInput = z.infer<typeof extractTablesInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
 export type OutlineInput = z.infer<typeof outlineInputSchema>;
 export type Selectors = z.infer<typeof selectorsSchema>;

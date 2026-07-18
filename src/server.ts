@@ -5,6 +5,7 @@ import { registerChunkTextTool } from './tools/chunk_text.js';
 import { registerExtractLinksTool } from './tools/extract_links.js';
 import { registerExtractMetadataTool } from './tools/extract_metadata.js';
 import { registerExtractSectionTool } from './tools/extract_section.js';
+import { registerExtractTablesTool } from './tools/extract_tables.js';
 import { registerExtractTool } from './tools/extract.js';
 import { registerHtmlToMarkdownTool } from './tools/html_to_markdown.js';
 import { registerOutlineTool } from './tools/outline.js';
@@ -27,6 +28,7 @@ export function registerTools(server: McpServer): ToolHandle[] {
     registerExtractTool(server),
     registerExtractMetadataTool(server),
     registerExtractSectionTool(server),
+    registerExtractTablesTool(server),
     registerHtmlToMarkdownTool(server),
     registerOutlineTool(server),
   ];

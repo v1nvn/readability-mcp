@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { tableFormatSchema } from './schemas.js';
+
 // Shared between `extract` and `extract_metadata` outputs so the metadata
 // cascade has one shape across tools. wordCount/readingTimeMin/tokenEstimate
 // are optional here — extract_metadata omits them; extract populates them.
@@ -438,3 +440,60 @@ export const extractLinksOutputShape = {
 export const extractLinksOutput = z.object(extractLinksOutputShape);
 
 export type ExtractLinksStructuredContent = z.infer<typeof extractLinksOutput>;
+
+export const tableEntrySchema = z
+  .object({
+    index: z
+      .number()
+      .int()
+      .min(0)
+      .describe('0-based position among emitted tables.'),
+    rows: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Row count of the matrix (after rowspan/colspan resolution).'),
+    cols: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Column count of the matrix (after colspan resolution).'),
+    markdown: z
+      .string()
+      .describe('The table rendered in the requested format (gfm/csv/json).'),
+  })
+  .describe('One extracted table with its dimensions and rendered form.');
+
+export const extractTablesOutputShape = {
+  schemaVersion: z
+    .literal(1)
+    .describe(
+      'Structured-content schema version. Bumps only on breaking shape changes to this object.',
+    ),
+  content: z
+    .string()
+    .describe(
+      'All tables rendered in the requested format, joined by blank lines; "(no tables found)" when none.',
+    ),
+  tables: z
+    .array(tableEntrySchema)
+    .describe(
+      'Every <table> on the page (rowspan/colspan-resolved), in document order.',
+    ),
+  metadata: z
+    .object({
+      url: z
+        .string()
+        .optional()
+        .describe('The url passed in (origin context).'),
+      format: tableFormatSchema.describe('The requested render format.'),
+      tableCount: z.number().int().describe('Number of tables emitted.'),
+    })
+    .describe('Tables-tool metadata.'),
+} as const;
+
+export const extractTablesOutput = z.object(extractTablesOutputShape);
+
+export type ExtractTablesStructuredContent = z.infer<
+  typeof extractTablesOutput
+>;

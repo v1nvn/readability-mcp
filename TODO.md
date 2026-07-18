@@ -77,7 +77,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Acceptance:** ≥80% item recall on `fixtures/{hn,search,blog-index}`; no false list-detection on article fixtures.
 
 ### TGT-5 — `extract_tables` standalone tool  · `Near` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Extract every `<table>` on the page → GFM / CSV / JSON (caller picks), even from non-article pages.
 - **Why:** Wikis/docs/data pages are table-heavy; the `tables` *option* on `extract` only sees tables inside the scored article. A standalone tool captures all tables regardless of the article boundary.
 - **Lands at:** New tool `extract_tables({html, format:"gfm"|"csv"|"json"})`, reusing the shipped `policy/tables.ts` matrix-IR serializer (rowspan/colspan-aware). No new rendering logic — only a page-wide `<table>` walk in front of the existing serializer.

@@ -55,7 +55,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All seven tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All eight tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -106,6 +106,18 @@ Returns just one section of a document — "give me the Authentication section" 
 | `heading` | — | Heading text selecting one section; the section spans from this heading to the next same-or-higher-level heading. Case-insensitive; first exact match wins, falling back to the first substring contain. Provide exactly one of `selector`/`heading`. |
 
 Output shape is the same as `extract` (`content`, `metadata`, `diagnostics`). Heading mode is equivalent to selector mode on the same subtree: `heading: "Authentication"` discovers the same boundary a wrapping `<section id="auth">…</section>` would expose via `selector: "#auth"`. A non-matching heading yields `{ "isError": true }` with `no heading matched: <query>`.
+
+### `extract_tables` — every table on the page
+
+Extracts **every** `<table>` on the page — a page-wide `querySelectorAll('table')` walk in front of the same rowspan/colspan-aware matrix serializer used by the `tables` option on `extract`. Runs **no** Readability, Turndown, sanitization, or `normalizeDocument` chrome-stripping, so it captures tables outside the article body (nav, aside, footer, boilerplate) that the `tables` option on `extract` never sees — the motivating case is wiki/doc/data pages whose content is table-heavy but whose article boundary hides most of them.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+| `format` | `gfm` | `gfm` (default, native GFM table with a delimiter row) \| `csv` (RFC-4180-ish, quoted fields) \| `json` (array of row objects keyed by the header row). |
+
+Output shape: `structuredContent.tables = [{index, rows, cols, markdown}]` — one entry per non-empty table in document order, where `rows`/`cols` are the matrix dimensions after rowspan/colspan resolution and `markdown` is the table rendered in the requested format. All entries' `markdown` are joined by blank lines into `content[0].text` (`"(no tables found)"` when the page has none). `metadata = {url?, format, tableCount}`. Empty `<table>` elements (no rows) are skipped, so `index` is contiguous over the emitted tables. Nested `<table>`s are emitted as their own entries in document order (the matrix walk excludes nested tables from a parent's matrix; `querySelectorAll` then returns the nested table separately).
 
 ### `outline` — heading pre-check
 
