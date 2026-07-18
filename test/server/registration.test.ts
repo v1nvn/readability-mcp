@@ -1,8 +1,16 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import {
+  GetPromptResultSchema,
+  ListPromptsResultSchema,
+  ListToolsResultSchema,
+} from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 
-import { createMcpServer, createServer, registerTools } from '../../src/server.js';
+import {
+  createMcpServer,
+  createServer,
+  registerTools,
+} from '../../src/server.js';
 
 interface LoopbackTransport {
   onmessage?: (message: unknown) => void;
@@ -56,6 +64,30 @@ async function listTools(client: Client): Promise<string[]> {
     ListToolsResultSchema,
   );
   return result.tools.map(tool => tool.name).sort();
+}
+
+async function listPrompts(client: Client): Promise<string[]> {
+  const result = await client.request(
+    { method: 'prompts/list' },
+    ListPromptsResultSchema,
+  );
+  return result.prompts.map(prompt => prompt.name).sort();
+}
+
+async function getPromptText(
+  client: Client,
+  name: string,
+  args: Record<string, string>,
+): Promise<string> {
+  const result = await client.request(
+    { method: 'prompts/get', params: { name, arguments: args } },
+    GetPromptResultSchema,
+  );
+  const message = result.messages[0];
+  if (message.content.type !== 'text') {
+    throw new Error(`expected text content, got ${message.content.type}`);
+  }
+  return message.content.text;
 }
 
 describe('tool registration', () => {
@@ -123,6 +155,24 @@ describe('tool registration', () => {
       'html_to_markdown',
       'outline',
     ]);
+    await close();
+  });
+});
+
+describe('prompt registration', () => {
+  it('createServer advertises read_url over prompts/list', async () => {
+    const { client, close } = await connect(createServer());
+    expect(await listPrompts(client)).toEqual(['read_url']);
+    await close();
+  });
+
+  it('prompts/get read_url fills the url and references extract', async () => {
+    const { client, close } = await connect(createServer());
+    const text = await getPromptText(client, 'read_url', {
+      url: 'https://example.com',
+    });
+    expect(text).toContain('https://example.com');
+    expect(text).toContain('extract');
     await close();
   });
 });

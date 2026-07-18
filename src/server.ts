@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadConfig } from './config.js';
+import { registerPrompts } from './prompts.js';
 import { registerChunkTextTool } from './tools/chunk_text.js';
 import { registerExplainTool } from './tools/explain.js';
 import { registerExtractLinksTool } from './tools/extract_links.js';
@@ -39,5 +40,6 @@ export function registerTools(server: McpServer): ToolHandle[] {
 export function createServer(): McpServer {
   const server = createMcpServer();
   registerTools(server);
+  registerPrompts(server);
   return server;
 }

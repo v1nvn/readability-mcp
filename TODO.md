@@ -196,7 +196,7 @@ Make extraction quality *measurable* and *debuggable*.
 | MCP-2 | `sampling`-based features (summarize/Q&A via host) | Future | M | mcp sampling |
 
 ### MCP-1 — `Prompts` — read-URL recipe  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Ship a `prompts/read_url` that choreographs chrome-devtools → extract: navigate → wait for network idle → scroll → `evaluate_script(outerHTML)` → `extract`. Returns the filled prompt for the host.
 - **Why:** Documents the intended two-tool flow as a first-class, discoverable artifact instead of a README snippet.
 - **Lands at:** `src/prompts.ts`; MCP `prompts/list` + `prompts/get`.

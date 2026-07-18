@@ -19,6 +19,7 @@ import { logger } from './logger.js';
 // and can re-evaluate it on change.
 interface RuntimeModule {
   createMcpServer(): McpServer;
+  registerPrompts(server: McpServer): { remove(): void }[];
   registerTools(server: McpServer): { remove(): void }[];
 }
 
@@ -56,6 +57,7 @@ async function main(): Promise<void> {
   // connect (registerCapabilities throws post-connect); reloads are idempotent.
   const server = first.createMcpServer();
   let handles = first.registerTools(server);
+  let promptHandles = first.registerPrompts(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -77,7 +79,11 @@ async function main(): Promise<void> {
       for (const handle of handles) {
         handle.remove();
       }
+      for (const handle of promptHandles) {
+        handle.remove();
+      }
       handles = next.registerTools(server);
+      promptHandles = next.registerPrompts(server);
       logger.info('[reload] success');
     } catch (err) {
       logger.error(
