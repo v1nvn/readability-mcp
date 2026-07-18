@@ -21,6 +21,18 @@ npm run build      # bundles to dist/index.js
 node dist/index.js # starts the stdio MCP server
 ```
 
+### Docker / Smithery
+
+A `Dockerfile` (multi-stage `node:22-bookworm-slim`, runs as non-root `node`) and a `smithery.yaml` (stdio runtime) are included for container and [Smithery](https://smithery.ai) deployment:
+
+```bash
+docker build -t readability-mcp .
+docker run --rm -i readability-mcp            # stdio MCP server on stdin/stdout
+docker run --rm -i readability-mcp extract --format md < page.html
+```
+
+The Smithery manifest pins the `stdio` startCommand (this server ships `StdioServerTransport` only — the HTTP container runtime cannot launch it) and surfaces `READABILITY_MCP_LOG_LEVEL` as the one config knob.
+
 ## The chrome-devtools handoff
 
 The motivating flow is two hops — each tool does the one thing it is best at:
@@ -55,7 +67,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All eight tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All ten always-on tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. A sampling-capable host also sees an eleventh — `summarize` — registered after the `initialize` handshake when the client advertises the MCP `sampling` capability. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
@@ -119,6 +131,17 @@ Extracts **every** `<table>` on the page — a page-wide `querySelectorAll('tabl
 
 Output shape: `structuredContent.tables = [{index, rows, cols, markdown}]` — one entry per non-empty table in document order, where `rows`/`cols` are the matrix dimensions after rowspan/colspan resolution and `markdown` is the table rendered in the requested format. All entries' `markdown` are joined by blank lines into `content[0].text` (`"(no tables found)"` when the page has none). `metadata = {url?, format, tableCount}`. Empty `<table>` elements (no rows) are skipped, so `index` is contiguous over the emitted tables. Nested `<table>`s are emitted as their own entries in document order (the matrix walk excludes nested tables from a parent's matrix; `querySelectorAll` then returns the nested table separately).
 
+### `extract_list` — feed/index/search pages
+
+A **second engine** for pages Readability cannot turn into one article: HN-style feeds, search-result pages, blog indexes, product grids. Strips `nav`/`header`/`footer`/`aside` + ARIA chrome roles first (the false-positive guard so an article's nav menu doesn't look like a 4-item feed), then finds the container whose direct children form a same-shape sibling cluster of **≥3** elements each carrying a navigation anchor — the cluster with the most items wins. Runs **no** Readability, Turndown, sanitization, or `normalizeDocument` chrome-stripping (the detector scores against the very chrome-bearing structure the article normalizer would discard). Returns `detected:false` on article pages.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; used to absolutize item `href`s. |
+
+Output shape: `structuredContent = {schemaVersion, content, items, diagnostics, metadata}`. `items = [{title, url, snippet, score}]` in document order — `snippet` is the item's text teaser (empty when the cluster has no per-item text), `score` is the detector's internal ranking weight. `diagnostics = {detected, itemCount, containerSelector, itemTag, confidence, note}`: `detected:false` means no list structure was found (`itemCount:0`, empty `items`, and a `note` explaining why); `containerSelector`/`itemTag` name the winning cluster; `confidence` is a rough quality signal. `metadata = {url}`.
+
 ### `outline` — heading pre-check
 
 Returns the document outline (`h1`–`h6` in document order with stable anchor ids) as a cheap "is this worth reading?" / "where's the section about X?" pre-check before paying for full extraction. Runs **no** Readability, Turndown, or sanitization — a pure heading walk over the normalized DOM.
@@ -153,6 +176,19 @@ Returns only the bibliographic metadata — `title`, `byline`, `siteName`, `lang
 
 Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, publishedTime?, excerpt?, canonical?, url?}` plus a human-readable `key: value` rendering in `content[0].text`. Note: `wordCount`/`readingTimeMin`/`tokenEstimate` are **not** populated by this tool — they are meaningless without the extracted body.
 
+### `explain` — extraction post-mortem
+
+Post-mortem diagnostics for an `extract` call: surfaces **why** Readability picked what it picked. Runs the same normalize + Readability pipeline as `extract` (no fallback cascade, no Turndown, no DOMPurify) and reads Readability's real per-candidate `contentScore` values off the DOM expando Readability stamps during scoring. Reach for it when `extract` lands on the wrong root or strips content you expected — it shows the scored runners-up so you can tune `selectors`/`extraction`/`minArticleLength`.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
+| `url` | — | Optional origin. **Never fetched**; used for pagination/gating detection only. |
+| `selectors` | — | Same `include`/`exclude` shape as `extract` — applied at the normalize step so the diagnosis matches what `extract` would see. |
+| `topN` | `5` | Maximum scored candidate nodes to return (highest first); 1–20. |
+
+Output shape: `structuredContent = {schemaVersion, content, chosenRoot, candidates, readerable, parseSucceeded, fallbackUsed, gating, pagination, removedNodes, snapshot}`. `chosenRoot` is Readability's raw top pick (before parent-walking/only-child post-processing); `candidates` is the ranked list (capped at `topN`) where each entry carries `{tag, id, className, selector, score, textLength}` — `score` is Readability's actual `contentScore`, not a self-rolled heuristic, and `selector` is a CSS-ish hint, **not** a unique locator (the score lives on a JS expando invisible to CSS). `removedNodes = {total, chrome, boilerplate}`. `gating`/`pagination` mirror `extract`'s diagnostics (`null` when none). `snapshot = {html, truncated}` is the post-normalize, pre-Readability HTML — "what Readability saw" — capped at 4000 chars. `parseSucceeded:false` is the signal that `extract` would have hit its fallback cascade; `fallbackUsed` is always `false` here (explain never runs the cascade).
+
 ### `chunk_text` — chunk for RAG/embedding
 
 Splits already-extracted text into token-bounded chunks, each carrying `index`, `text`, `tokenCount` (chars/4, same estimator as `metadata.tokenEstimate`), and `headingContext` (the heading hierarchy path in effect at the chunk's first unit — empty string when the chunk precedes any heading). Operates on any text — pair with `extract`'s `chunk` option when you want chunks inline with the extraction.
@@ -165,6 +201,17 @@ Splits already-extracted text into token-bounded chunks, each carrying `index`, 
 | `strategy` | `semantic` | Chunking strategy. `semantic` (default) breaks on heading/section boundaries and never splits a fenced code block (an oversized code block is emitted as its own chunk that may exceed the budget — the deliberate tradeoff for keeping fences intact); `char` is the greedy char-bounded fallback that may split a code block. |
 
 Output shape: `structuredContent.chunks = [{index, text, tokenCount, headingContext}]` in order, plus a readable numbered index in `content[0].text`. Empty array when the input has no non-whitespace content.
+
+### `summarize` — host-model summarization (sampling-gated)
+
+Delegates summarization to the **host's** model via MCP `sampling/createMessage` — the server embeds no model and calls no provider directly. Only listed when the connected client advertises the `sampling` capability on `initialize` (registered after the handshake, so a non-sampling host never sees it on `tools/list`); otherwise invisible. The host picks the model and may prompt the user before each call (human-in-the-loop, per MCP). Hand it the output of `extract`/`extract_section`/`html_to_markdown`/`chunk_text` — or any markdown/text string.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `text` *(required)* | — | Markdown or text to summarize. Passed through to the host model verbatim; the server does not parse or modify it. |
+| `maxTokens` | `512` | Upper bound on the summary length in tokens, forwarded as `sampling/createMessage` `maxTokens`. The host chooses the actual length. |
+
+Output shape: a single `content[0].text` entry holding the host's summary. No `structuredContent` — the server returns whatever the host model produces. A non-text response from the host (e.g. an image) surfaces as `{ "isError": true }`.
 
 ## Diagnostics
 
@@ -184,6 +231,39 @@ A full rendered SPA can be several MB as a string, and MCP tool args travel over
 - **`selectors.include`** — scope to the article subtree, e.g. `"main"`, so only the relevant DOM is scored and serialized.
 - **`maxChars`** — cap the returned payload; truncation lands at a block boundary and never splits a fenced code block.
 - **`maxNodes`** — a hard cap on elements parsed (`Readability.maxElemsToParse`) for very large documents.
+
+## Prompts
+
+The server exposes one MCP prompt:
+
+- **`prompts/read_url({url})`** — returns the recipe that choreographs the canonical two-tool flow for reading a live URL: a browser tool (chrome-devtools) renders the page and captures `document.documentElement.outerHTML`, then the readability `extract` tool turns that HTML into Markdown. The prompt's job is to fill the host in on the handoff (the readability server never fetches URLs); the host executes the steps. The `url` argument is carried into the recipe as origin context for `extract`.
+
+## Resources (page cache)
+
+`extract({cache:true})` caches the result and exposes it as an addressable MCP Resource at `readability://page/{hash}`. Subsequent `extract` calls with the same HTML (modulo volatile bytes — see below) and the same output options hit the cache instead of re-running the pipeline. The cache is in-memory, bounded (256 entries, LRU), and TTL'd (30 min).
+
+- **`diagnostics.cache = {hit, normalizedHash, originalHash}`** appears on every cached `extract` result: `hit:true`/`false`, plus both hashes. The `normalizedHash` is what the key is built from; `originalHash` is the SHA-256 of the raw HTML. A miss where `normalizedHash` matches an existing entry but the lookup still missed points at an args-fingerprint mismatch (different `format`/`selectors`/…) rather than a genuinely different page — useful when debugging "should have hit."
+- **Normalized-hash keying.** Before hashing, the HTML is volatility-normalized: inline `<script>` blocks, CSP `<meta>` tags, per-render `nonce=` attributes, build-tool generated attribute names (`data-v-…`, `data-css-…`, `data-svelte-…`, `data-h-…`), and React/Next generated `id`s (`:R1:`, `:r1:`, `__next_…`, `reactX_…`) are stripped, and whitespace runs are collapsed. The same page re-rendered with a fresh CSP nonce or a different build hash collapses to the same key.
+- **Listing and reading.** `resources/list` enumerates current cache entries (`readability://page/{cacheKey}`, `text/markdown`); `resources/read` on a `readability://page/{hash}` URI returns the cached markdown (empty body if the entry has expired or been evicted).
+
+## CLI
+
+`readability-mcp` also runs as a one-shot CLI for extracting from a local HTML file or stdin, with no MCP server in the loop:
+
+```bash
+readability-mcp extract [file.html] [--format md|json|html] [--max-chars N] [--stdin]
+```
+
+- `extract` is the only subcommand; everything after it is parsed as options. With no args at all (`readability-mcp`), the stdio MCP server starts instead.
+- `file.html` is read from disk; when no file is given, HTML is read from **stdin** (the `--stdin` flag is a discoverability alias for the same behavior).
+- `--format`: `md` (default, markdown) | `json` (the `structuredContent` object, pretty-printed) | `html` (the post-pipeline HTML). Internally `json` reuses the markdown pipeline and serializes the structured object on the way out.
+- `--max-chars N` mirrors `extract`'s `maxChars` — truncate the payload at a block boundary, never inside a fenced code block.
+
+```bash
+curl -s https://example.com | readability-mcp extract --format md
+readability-mcp extract page.html --format json --max-chars 20000
+cat saved.html | readability-mcp extract --stdin
+```
 
 ## Development
 
