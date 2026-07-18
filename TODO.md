@@ -125,7 +125,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** Reports per-fixture and aggregate precision/recall against human-labeled boundaries.
 
 ### OBS-3 — Differential golden tests vs Readability versions  · `Future` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Run the golden suite against multiple `@mozilla/readability` versions; flag behavior drift before bumping.
 - **Why:** Readability ships scoring changes; pin/upgrade deliberately.
 - **Lands at:** CI matrix job.

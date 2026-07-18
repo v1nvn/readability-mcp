@@ -1,0 +1,76 @@
+name: readability-versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_version:
+        description: Readability version to snapshot as the baseline
+        default: '0.6.0'
+      to_version:
+        description: Readability version to compare against the baseline
+        default: 'latest'
+  schedule:
+    # Monday 06:17 UTC — drift check against the latest published version.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      # The committed lockfile has darwin-only gaps; `npm install` (not `ci`)
+      # resolves the dev toolchain on linux. Subsequent `npm install
+      # @mozilla/readability@<ver>` swaps the version in-place without
+      # rewriting the lockfile on disk in a way we commit.
+      - run: npm install
+
+      - name: Snapshot baseline version
+        run: |
+          npm install "@mozilla/readability@${{ inputs.from_version || '0.6.0' }}"
+          echo "FROM_VERSION=$(node -p "require('./node_modules/@mozilla/readability/package.json').version")" >> "$GITHUB_ENV"
+          npx vite-node test/bench/version-snapshot.ts --out snapshot-from
+
+      - name: Snapshot comparison version
+        run: |
+          npm install "@mozilla/readability@${{ inputs.to_version || 'latest' }}"
+          echo "TO_VERSION=$(node -p "require('./node_modules/@mozilla/readability/package.json').version")" >> "$GITHUB_ENV"
+          npx vite-node test/bench/version-snapshot.ts --out snapshot-to
+
+      # `git diff --no-index` exits 1 whenever the trees differ, which is the
+      # whole point of this job — swallow that exit so the step is green.
+      - name: Diff snapshots
+        run: |
+          git diff --no-index --stat snapshot-from snapshot-to > diff-stat.txt || true
+          git diff --no-index snapshot-from snapshot-to > diff-full.txt || true
+
+      - name: Summary
+        run: |
+          {
+            echo '## Readability version differential'
+            echo ''
+            echo "Baseline: \`$FROM_VERSION\` → Comparison: \`$TO_VERSION\`"
+            echo ''
+            echo '### Per-fixture changes'
+            echo ''
+            echo '```diff'
+            cat diff-stat.txt
+            echo '```'
+            echo ''
+            echo 'Full per-fixture diff is in the `readability-diff` workflow artifact (`diff-full.txt`).'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: readability-diff
+          path: |
+            snapshot-from/
+            snapshot-to/
+            diff-stat.txt
+            diff-full.txt
