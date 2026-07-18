@@ -2,6 +2,8 @@
 // `chars/4` estimator mirrors policy/metadata.ts so a chunk's `tokenCount` is
 // directly comparable to `metadata.tokenEstimate`.
 
+import { headingText as headingLabel, parseBlocks } from './markdown.js';
+
 export interface Chunk {
   readonly headingContext: string;
   readonly index: number;
@@ -59,27 +61,22 @@ function splitBlocks(markdown: string): Block[] {
   return blocks;
 }
 
-// Hard-cap a block to <= maxChars: split by lines first, then hard-split any
-// oversized line. Char strategy may break a code block — the semantic strategy
-// avoids that.
-function splitOversizedBlock(block: Block, maxChars: number): Unit[] {
-  const units: Unit[] = [];
-  const lines = block.text.split('\n');
+// Hard-cap a run to <= maxChars pieces: pack whole lines, then hard-split any
+// single line that alone exceeds the budget.
+function hardSplitLines(text: string, maxChars: number): string[] {
+  const pieces: string[] = [];
   let buffer = '';
   function flush(): void {
     if (buffer) {
-      units.push({ headingContext: block.headingContext, text: buffer });
+      pieces.push(buffer);
       buffer = '';
     }
   }
-  for (const line of lines) {
+  for (const line of text.split('\n')) {
     if (line.length > maxChars) {
       flush();
       for (let i = 0; i < line.length; i += maxChars) {
-        units.push({
-          headingContext: block.headingContext,
-          text: line.slice(i, i + maxChars),
-        });
+        pieces.push(line.slice(i, i + maxChars));
       }
       continue;
     }
@@ -92,7 +89,15 @@ function splitOversizedBlock(block: Block, maxChars: number): Unit[] {
     }
   }
   flush();
-  return units;
+  return pieces;
+}
+
+// Char strategy may break a code block — the semantic strategy avoids that.
+function splitOversizedBlock(block: Block, maxChars: number): Unit[] {
+  return hardSplitLines(block.text, maxChars).map(text => ({
+    headingContext: block.headingContext,
+    text,
+  }));
 }
 
 function toUnits(blocks: readonly Block[], maxChars: number): Unit[] {
@@ -218,15 +223,9 @@ function chunkMarkdownChar(
 
 // --- Semantic strategy ------------------------------------------------------
 //
-// Break on heading/section boundaries and never split a fenced code block.
-// Mirrors truncate.ts's fence awareness: a ```/~~~ line toggles fenced state,
-// and the whole fenced block (opening fence … closing fence) is one atomic
-// unit — boundaries inside a fence (blank lines, `#` lines) are ignored.
-
-// A fence delimiter opens or closes a CommonMark fenced code block: 0-3 spaces
-// of indentation followed by ``` or ~~~ (3+). Loose (matches truncate.ts) —
-// indented or info-string-bearing fences both toggle.
-const FENCE_DELIMITER = /^[ ]{0,3}(`{3,}|~{3,})/;
+// Break on heading/section boundaries and never split a fenced code block. Each
+// top-level mdast node is one unit; a fenced code block is a single `code` node
+// so it stays atomic for free.
 
 type SemanticUnitKind = 'code' | 'heading' | 'text';
 
@@ -249,86 +248,30 @@ interface SemanticGroup {
   readonly units: readonly SemanticUnit[];
 }
 
-const HEADING_LINE = /^(#{1,6})\s/;
-
-function isFenceDelimiter(line: string): boolean {
-  return FENCE_DELIMITER.test(line);
-}
-
 function parseSemanticUnits(markdown: string): SemanticUnit[] {
-  const lines = markdown.split('\n');
   const units: SemanticUnit[] = [];
   const stack: { level: number; text: string }[] = [];
-  let insideFence = false;
-  let fenceBuffer: string[] = [];
-  let paraBuffer: string[] = [];
 
   function context(): string {
     return stack.map(h => h.text).join(' > ');
   }
 
-  function flushPara(): void {
-    if (paraBuffer.length === 0) {
-      return;
-    }
-    const text = paraBuffer.join('\n').trim();
-    if (text) {
-      units.push({ headingContext: context(), kind: 'text', text });
-    }
-    paraBuffer = [];
-  }
-
-  function flushFence(): void {
-    if (fenceBuffer.length === 0) {
-      return;
+  for (const block of parseBlocks(markdown)) {
+    const text = markdown.slice(block.start, block.end);
+    if (block.kind === 'heading') {
+      while (stack.length > 0 && stack[stack.length - 1].level >= block.depth) {
+        stack.pop();
+      }
+      stack.push({ level: block.depth, text: headingLabel(text) });
+      units.push({ headingContext: context(), kind: 'heading', text });
+      continue;
     }
     units.push({
       headingContext: context(),
-      kind: 'code',
-      text: fenceBuffer.join('\n'),
+      kind: block.kind === 'code' ? 'code' : 'text',
+      text,
     });
-    fenceBuffer = [];
   }
-
-  for (const line of lines) {
-    if (isFenceDelimiter(line)) {
-      if (insideFence) {
-        fenceBuffer.push(line);
-        flushFence();
-        insideFence = false;
-      } else {
-        flushPara();
-        fenceBuffer.push(line);
-        insideFence = true;
-      }
-      continue;
-    }
-    if (insideFence) {
-      fenceBuffer.push(line);
-      continue;
-    }
-    const headingMatch = HEADING_LINE.exec(line);
-    if (headingMatch) {
-      flushPara();
-      const level = headingMatch[1].length;
-      const text = line.replace(/^#{1,6}\s+/, '').trim();
-      while (stack.length > 0 && stack[stack.length - 1].level >= level) {
-        stack.pop();
-      }
-      stack.push({ level, text });
-      units.push({ headingContext: context(), kind: 'heading', text: line });
-      continue;
-    }
-    if (line.trim() === '') {
-      flushPara();
-      continue;
-    }
-    paraBuffer.push(line);
-  }
-  flushPara();
-  // Unterminated fence: emit what we captured so it survives rather than
-  // vanishing. Defensive — never throw on degenerate input.
-  flushFence();
   return units;
 }
 
@@ -381,36 +324,10 @@ function splitOversizedTextUnit(
   unit: SemanticUnit,
   maxChars: number,
 ): SemanticUnit[] {
-  const lines = unit.text.split('\n');
-  const pieces: string[] = [];
-  let buffer = '';
-  function flush(): void {
-    if (buffer) {
-      pieces.push(buffer);
-      buffer = '';
-    }
-  }
-  for (const line of lines) {
-    if (line.length > maxChars) {
-      flush();
-      for (let i = 0; i < line.length; i += maxChars) {
-        pieces.push(line.slice(i, i + maxChars));
-      }
-      continue;
-    }
-    const candidate = buffer ? `${buffer}\n${line}` : line;
-    if (candidate.length > maxChars) {
-      flush();
-      buffer = line;
-    } else {
-      buffer = candidate;
-    }
-  }
-  flush();
-  return pieces.map(piece => ({
+  return hardSplitLines(unit.text, maxChars).map(text => ({
     headingContext: unit.headingContext,
     kind: 'text',
-    text: piece,
+    text,
   }));
 }
 

@@ -9,6 +9,7 @@ Comments explain *why*, not *what*. The default is no comment. Write one only wh
 
 - Use TODO.md to track issues, features and all progress.
 - Mark a task done only when `npm run typecheck && npm run lint:fix` is successful.
+- Green tests aren't proof of behaviour — exercise a runtime change end-to-end through the connected MCP server (hot-reloaded via `npm run dev`, wired in `.mcp.json`), so your edits are already live to call.
 - Always do things cleanly — no band-aids or hacks.
 
 # Shared helpers & layering
@@ -18,6 +19,7 @@ Comments explain *why*, not *what*. The default is no comment. Write one only wh
 - Don't import upward for a type — give the lower layer its own local structural type; structural compatibility keeps callers working without inverting the dependency.
 - Delete speculative surface (unused option, unreachable branch) rather than carrying it for a caller that doesn't exist.
 - Don't hand-roll code for which a well maintained library exists
+- When a library replaces hand-rolled string parsing, use it as a boundary finder (node offsets) and slice the *original* text — never round-trip through its serializer, which silently reflows the payload.
 
 # MCP documentation
 

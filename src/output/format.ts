@@ -2,6 +2,8 @@ import { stringify as stringifyYaml } from 'yaml';
 
 import type { Diagnostics, Metadata } from '../pipeline/context.js';
 
+import { headingText, parseBlocks } from '../policy/markdown.js';
+
 export type Format = 'html' | 'json' | 'markdown' | 'text';
 export type MetadataMode = 'json' | 'none' | 'yaml';
 
@@ -24,15 +26,16 @@ interface JsonObject {
 // Readability demotes the article <h1> to <h2> inside `content` and mirrors its
 // text into the title; drop the echoed sub-heading so the title prints once.
 function dropEchoedTitle(body: string, title: string): string {
-  const lines = body.split('\n');
-  const first = lines[0];
-  const match = /^#{1,6}\s+(.+?)\s*$/.exec(first);
-  if (match?.[1]?.trim() === title.trim()) {
-    const rest = lines.slice(1);
-    if (rest[0] === '') {
-      rest.shift();
-    }
-    return rest.join('\n');
+  const blocks = parseBlocks(body);
+  if (blocks.length === 0) {
+    return body;
+  }
+  const first = blocks[0];
+  if (
+    first.kind === 'heading' &&
+    headingText(body.slice(first.start, first.end)) === title.trim()
+  ) {
+    return body.slice(first.end).replace(/^\n+/, '');
   }
   return body;
 }
