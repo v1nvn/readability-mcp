@@ -9,7 +9,7 @@ describe('frontmatter token estimate', () => {
     });
     const text = (result.content[0] as { text: string }).text;
     expect(text).toMatch(/^tokenEstimate: \d+$/m);
-    expect(text).toMatch(/^estimator: "chars\/4"$/m);
+    expect(text).toMatch(/^estimator: chars\/4$/m);
   });
 
   it('json frontmatter includes tokenEstimate and estimator fields', () => {

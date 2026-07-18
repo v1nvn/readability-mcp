@@ -17,6 +17,7 @@ Comments explain *why*, not *what*. The default is no comment. Write one only wh
 - Imports flow one way, `pipeline/` → `policy/` → `tools/`; a helper lives in the lowest layer that uses it, never the reverse.
 - Don't import upward for a type — give the lower layer its own local structural type; structural compatibility keeps callers working without inverting the dependency.
 - Delete speculative surface (unused option, unreachable branch) rather than carrying it for a caller that doesn't exist.
+- Don't hand-roll code for which a well maintained library exists
 
 # MCP documentation
 

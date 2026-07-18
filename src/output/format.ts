@@ -1,3 +1,5 @@
+import { stringify as stringifyYaml } from 'yaml';
+
 import type { Diagnostics, Metadata } from '../pipeline/context.js';
 
 export type Format = 'html' | 'json' | 'markdown' | 'text';
@@ -45,17 +47,6 @@ function renderMarkdown(input: Readonly<FormatInput>): string {
   return body.replace(/\n+$/, '\n');
 }
 
-function yamlScalar(value: number | string): string {
-  if (typeof value === 'number') {
-    return String(value);
-  }
-  const escaped = value
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\r?\n/g, ' ');
-  return `"${escaped}"`;
-}
-
 // Stable key order for deterministic frontmatter. `structured` is deliberately
 // absent: it is a nested object, not a scalar, and would dump a whole JSON-LD
 // graph into frontmatter. It reaches the host via format=json and
@@ -75,20 +66,9 @@ const METADATA_KEYS = [
   'estimator',
 ] as const satisfies readonly (keyof Metadata)[];
 
-function yamlFrontmatter(metadata: Readonly<Metadata>): string {
-  const lines: string[] = ['---'];
-  for (const key of METADATA_KEYS) {
-    const value = metadata[key];
-    if (value === undefined) {
-      continue;
-    }
-    lines.push(`${key}: ${yamlScalar(value)}`);
-  }
-  lines.push('---', '');
-  return lines.join('\n');
-}
-
-function jsonFrontmatter(metadata: Readonly<Metadata>): string {
+function pickMetadata(
+  metadata: Readonly<Metadata>,
+): Record<string, number | string> {
   const picked: Record<string, number | string> = {};
   for (const key of METADATA_KEYS) {
     const value = metadata[key];
@@ -96,7 +76,18 @@ function jsonFrontmatter(metadata: Readonly<Metadata>): string {
       picked[key] = value;
     }
   }
-  return '```json\n' + JSON.stringify(picked, null, 2) + '\n```\n';
+  return picked;
+}
+
+// lineWidth: 0 disables folding so each field stays on one line.
+function yamlFrontmatter(metadata: Readonly<Metadata>): string {
+  return `---\n${stringifyYaml(pickMetadata(metadata), { lineWidth: 0 })}---\n`;
+}
+
+function jsonFrontmatter(metadata: Readonly<Metadata>): string {
+  return (
+    '```json\n' + JSON.stringify(pickMetadata(metadata), null, 2) + '\n```\n'
+  );
 }
 
 function withFrontmatter(
