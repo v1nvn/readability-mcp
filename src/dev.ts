@@ -19,6 +19,7 @@ import { logger } from './logger.js';
 // and can re-evaluate it on change.
 interface RuntimeModule {
   createMcpServer(): McpServer;
+  registerCapabilityGatedTools(server: McpServer): { remove(): void }[];
   registerPrompts(server: McpServer): { remove(): void }[];
   registerResources(server: McpServer): { remove(): void }[];
   registerTools(server: McpServer): { remove(): void }[];
@@ -60,6 +61,15 @@ async function main(): Promise<void> {
   let handles = first.registerTools(server);
   let promptHandles = first.registerPrompts(server);
   let resourceHandles = first.registerResources(server);
+  // Capability-gated tools (sampling) defer to the `initialized` notification:
+  // `connect()` returns before the client advertises capabilities, so a direct
+  // call here would observe `getClientCapabilities() === undefined`. The hook
+  // fires once per connection, after the initialize handshake but before any
+  // `tools/list`. Reloads (runOneReload) re-check capabilities directly.
+  let capabilityGatedHandles: { remove(): void }[] = [];
+  server.server.oninitialized = () => {
+    capabilityGatedHandles = first.registerCapabilityGatedTools(server);
+  };
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -87,9 +97,16 @@ async function main(): Promise<void> {
       for (const handle of resourceHandles) {
         handle.remove();
       }
+      for (const handle of capabilityGatedHandles) {
+        handle.remove();
+      }
       handles = next.registerTools(server);
       promptHandles = next.registerPrompts(server);
       resourceHandles = next.registerResources(server);
+      // The client is already past `initialized` by the time a file change
+      // fires, so capabilities are populated and the gate can re-evaluate
+      // directly (no second `oninitialized` to hook).
+      capabilityGatedHandles = next.registerCapabilityGatedTools(server);
       logger.info('[reload] success');
     } catch (err) {
       logger.error(

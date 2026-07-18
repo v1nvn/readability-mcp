@@ -203,7 +203,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** Host can list/get the prompt; it references the correct tool names.
 
 ### MCP-2 — `sampling`-based features  · `Future` · M
-- [ ] Implement
+- [x] Implement
 - **What:** Optional summarize / translate / Q&A implemented by requesting the **host's** model via `sampling/createMessage`, never an embedded model.
 - **Why:** Enables LLM features without bloating the server or coupling to a provider.
 - **Lands at:** `src/sampling.ts`. **Off by default**; only when a host advertises sampling capability.

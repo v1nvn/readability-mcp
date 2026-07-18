@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { loadConfig } from './config.js';
 import { registerPrompts } from './prompts.js';
 import { registerResources } from './resources.js';
+import { registerSamplingTools } from './sampling.js';
 import { registerChunkTextTool } from './tools/chunk_text.js';
 import { registerExplainTool } from './tools/explain.js';
 import { registerExtractLinksTool } from './tools/extract_links.js';
@@ -45,10 +46,33 @@ export function registerTools(server: McpServer): ToolHandle[] {
   ];
 }
 
+// Capability-gated tools are registered AFTER the initialize handshake, not
+// eagerly with the families above. The MCP `tools` capability locks in on the
+// first pre-connect registration (registerCapabilities throws post-connect),
+// so the tool-list handlers are already live; adding to `_registeredTools`
+// later simply appears in the next `tools/list` and fires `listChanged`. The
+// low-level Server populates `getClientCapabilities()` from the client's
+// `initialize` request, exposed via `McpServer.server`.
+export function registerCapabilityGatedTools(server: McpServer): ToolHandle[] {
+  const caps = server.server.getClientCapabilities();
+  if (!caps?.sampling) {
+    return [];
+  }
+  return registerSamplingTools(server);
+}
+
 export function createServer(): McpServer {
   const server = createMcpServer();
   registerTools(server);
   registerPrompts(server);
   registerResources(server);
+  // Capability-gated tools (sampling) need the client's advertised
+  // capabilities, which the low-level Server only populates after the
+  // initialize handshake. Hook the `initialized` notification — it fires once
+  // the client has connected and before any `tools/list`. `dev.ts` re-runs the
+  // gate directly on reload (the client is already past `initialized`).
+  server.server.oninitialized = () => {
+    registerCapabilityGatedTools(server);
+  };
   return server;
 }
