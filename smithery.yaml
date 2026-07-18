@@ -1,0 +1,25 @@
+# stdio, not `runtime: container` + http: this server ships StdioServerTransport
+# only (src/index.ts), so the http container runtime cannot launch it.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      logLevel:
+        type: string
+        enum:
+          - debug
+          - info
+          - warn
+          - error
+          - silent
+        default: info
+        description: Server log verbosity on stderr.
+  exampleConfig:
+    logLevel: info
+  commandFunction: |-
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.js'],
+      env: { READABILITY_MCP_LOG_LEVEL: config.logLevel ?? 'info' }
+    })

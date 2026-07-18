@@ -180,7 +180,7 @@ Make extraction quality *measurable* and *debuggable*.
 - **Acceptance:** A large fixture returns without a single multi-MB payload when the host supports it.
 
 ### OPS-5 — Smithery manifest + Dockerfile  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** `smithery.yaml` + `Dockerfile` for one-click install on the Smithery registry.
 - **Why:** Discoverability / install ergonomics.
 - **Lands at:** repo root files.
