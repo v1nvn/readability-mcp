@@ -18,6 +18,7 @@ import { chunkMarkdown } from '../policy/chunk.js';
 import { assembleDiagnostics, TraceCollector } from '../policy/diagnostics.js';
 import { extractViaFallback } from '../policy/fallback.js';
 import { detectGating } from '../policy/gating.js';
+import { collectImageInventory } from '../policy/images.js';
 import { resolveMetadata } from '../policy/metadata.js';
 import { detectPagination } from '../policy/pagination.js';
 import { resolveReadabilityOptions } from '../policy/resolver.js';
@@ -55,6 +56,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     cleanChrome,
     tables,
     chunk,
+    imageInventory,
     debug,
   } = args;
 
@@ -244,6 +246,12 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       ? chunkMarkdown(payload, chunk)
       : undefined;
 
+  // Runs against sanitizedHtml so the inventory reflects exactly what the host
+  // sees in content[0].text — post-sanitization, post-lazy-resolution.
+  const imageInventoryEntries = imageInventory
+    ? collectImageInventory(sanitizedHtml, window, url)
+    : undefined;
+
   return {
     content: [{ text: payload, type: 'text' }],
     structuredContent: {
@@ -252,6 +260,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       metadata,
       diagnostics,
       ...(chunks ? { chunks } : {}),
+      ...(imageInventoryEntries ? { images: imageInventoryEntries } : {}),
     },
   };
 }

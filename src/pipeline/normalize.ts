@@ -275,7 +275,7 @@ const PLACEHOLDER_TOKENS = [
   'dummy',
 ];
 
-function isPlaceholderSrc(src: string): boolean {
+export function isPlaceholderSrc(src: string): boolean {
   if (!src) {
     return true;
   }

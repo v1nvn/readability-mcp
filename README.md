@@ -83,6 +83,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 | `keepClasses` | `false` | Retain all classes (default strips non-language classes). |
 | `readabilityOverrides` | — | Escape hatch — passed verbatim to `new Readability(doc, …)`. Unstable. |
 | `chunk` | — | Split the extracted markdown into token-bounded chunks (RAG/embedding-ready). `{maxTokens, overlap?, strategy?}` (strategy defaults to `semantic`) — when set, `structuredContent.chunks` is an array of `{index, text, tokenCount, headingContext}`. Only applies to `format:"markdown" \| "text"`; HTML/JSON payloads carry no markdown body to slice and leave `chunks` unset. |
+| `imageInventory` | `false` | Emit `structuredContent.images` — an array of `{src, alt, width?, height?, caption}` for every `<img>` in the extracted article (absolute resolved srcs, placeholders skipped, caption from the enclosing `<figure>`'s `<figcaption>` else `alt`). Independent of the `images` inline-rendering option. |
 | `debug` | `false` | Emit `diagnostics.trace` with per-stage `{stage, ms}` timings (`normalize`, `readability`, `sanitize`, `turndown`, `metadata`). Debug-only — `trace` is absent otherwise. |
 
 **Fallback.** If Readability's `parse()` returns no article (e.g. an app shell or image-only page), a selector cascade salvages the first usable root — `article` → `main` → `[role=main]` → largest text-dense block → `body` — and reports `diagnostics.fallbackUsed: true` with `extractedNode` naming the root that was used.

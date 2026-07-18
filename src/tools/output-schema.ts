@@ -104,6 +104,30 @@ export const chunkObjectSchema = z
     'One token-bounded slice of the extracted markdown, with its section heading for context.',
   );
 
+export const imageEntrySchema = z
+  .object({
+    src: z
+      .string()
+      .describe('Absolute (resolved) image URL, absolutized against url.'),
+    alt: z
+      .string()
+      .describe('The img alt attribute, or empty string when absent.'),
+    width: z
+      .number()
+      .int()
+      .optional()
+      .describe('Pixel dimension from the attribute, when present.'),
+    height: z
+      .number()
+      .int()
+      .optional()
+      .describe('Pixel dimension from the attribute, when present.'),
+    caption: z
+      .string()
+      .describe('figcaption text from the enclosing <figure>, else alt.'),
+  })
+  .describe('One extracted image with resolved source and caption.');
+
 export const outputSchemaShape = {
   schemaVersion: z
     .literal(1)
@@ -120,6 +144,12 @@ export const outputSchemaShape = {
     .optional()
     .describe(
       'Token-bounded chunks of the extracted markdown, populated by `extract` only when the `chunk` option is set and the format yields a markdown/text body. Absent for html_to_markdown and for html/json extract formats.',
+    ),
+  images: z
+    .array(imageEntrySchema)
+    .optional()
+    .describe(
+      'Inventory of article images (absolute src, alt, dimensions, caption); populated only when imageInventory:true is passed to extract.',
     ),
   metadata: metadataObjectSchema,
   diagnostics: z

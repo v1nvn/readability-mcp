@@ -91,7 +91,7 @@ Readability only extracts "the article." Half the web isn't an article.
 - **Acceptance:** Heading `"Authentication"` returns only that section's markdown on a docs fixture; equivalent to `selector:"#auth"`; the section ends at the next same-or-higher-level heading.
 
 ### TGT-9 — Image inventory  · `Near` · S
-- [ ] Implement
+- [x] Implement
 - **What:** Structured image list `[{src, alt, width, height, caption}]` (absolute URLs, no inline markdown) via `extract({ ..., imageInventory: true })`, emitted in `structuredContent.images`.
 - **Why:** Crawl/RAG callers want the image inventory, not rendered `![]()`.
 - **Lands at:** An **output option on `extract`**, not a tool (tool-vs-option rule). The existing `images` option governs *inline* rendering, so this is a distinct flag. Reuses the shipped lazy-resolution walker (one image-source walker, not two). `caption` from a preceding `<figcaption>`, else `alt`.

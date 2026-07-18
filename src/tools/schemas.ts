@@ -195,6 +195,12 @@ export const extractInputShape = {
     .describe(
       'Split the extracted markdown into token-bounded chunks (RAG/embedding-ready). When set, structuredContent.chunks is populated. Only applies to format:"markdown" | "text"; HTML/JSON payloads carry no markdown body to slice and leave chunks unset.',
     ),
+  imageInventory: z
+    .boolean()
+    .describe(
+      'Emit structuredContent.images: a list of {src (absolute, resolved), alt, width?, height?, caption} for every <img> in the extracted article. Independent of the `images` option (which governs inline rendering). Placeholders are skipped.',
+    )
+    .default(false),
 } as const;
 
 export const extractInputSchema = z.object(extractInputShape);
