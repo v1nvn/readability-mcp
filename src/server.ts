@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadConfig } from './config.js';
 import { registerChunkTextTool } from './tools/chunk_text.js';
+import { registerExplainTool } from './tools/explain.js';
 import { registerExtractLinksTool } from './tools/extract_links.js';
 import { registerExtractMetadataTool } from './tools/extract_metadata.js';
 import { registerExtractSectionTool } from './tools/extract_section.js';
@@ -24,6 +25,7 @@ export function createMcpServer(): McpServer {
 export function registerTools(server: McpServer): ToolHandle[] {
   return [
     registerChunkTextTool(server),
+    registerExplainTool(server),
     registerExtractLinksTool(server),
     registerExtractTool(server),
     registerExtractMetadataTool(server),

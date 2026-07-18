@@ -111,7 +111,7 @@ Make extraction quality *measurable* and *debuggable*.
 | OBS-4 | Pipeline trace & timings (debug) | Near | S | diagnostics field |
 
 ### OBS-1 — `explain` tool  · `Near` · M
-- [ ] Implement
+- [x] Implement
 - **What:** A diagnostics-heavy post-mortem: Readability's scored candidate nodes (top-N with scores), the chosen root, a rendered "what Readability saw" HTML snapshot, and a breakdown of removed nodes by category.
 - **Why:** The debugging superpower for tuning extraction and for trusting output. Extends the diagnostics object into a full report.
 - **Lands at:** New tool `explain({html, url?, selectors?})`. Requires Readability `debug:true` + capturing its candidate scoring; may need a thin fork/wrapper to surface scores.

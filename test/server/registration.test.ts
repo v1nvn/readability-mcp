@@ -59,12 +59,13 @@ async function listTools(client: Client): Promise<string[]> {
 }
 
 describe('tool registration', () => {
-  it('registerTools advertises the eight tools over tools/list', async () => {
+  it('registerTools advertises the nine tools over tools/list', async () => {
     const server = createMcpServer();
     registerTools(server);
     const { client, close } = await connect(server);
     expect(await listTools(client)).toEqual([
       'chunk_text',
+      'explain',
       'extract',
       'extract_links',
       'extract_metadata',
@@ -97,6 +98,7 @@ describe('tool registration', () => {
     registerTools(server);
     expect(await listTools(client)).toEqual([
       'chunk_text',
+      'explain',
       'extract',
       'extract_links',
       'extract_metadata',
@@ -108,10 +110,11 @@ describe('tool registration', () => {
     await close();
   });
 
-  it('createServer registers all eight', async () => {
+  it('createServer registers all nine', async () => {
     const { client, close } = await connect(createServer());
     expect(await listTools(client)).toEqual([
       'chunk_text',
+      'explain',
       'extract',
       'extract_links',
       'extract_metadata',
