@@ -11,13 +11,15 @@ function normalizeText(raw: string): string {
   return collapsed.replace(/^#+|#+$/g, '').trim();
 }
 
-// An all-symbol heading yields an empty slug; fall back to `section` so anchors
-// are always non-empty.
+// GFM anchor algorithm (comrak `anchorize`): keep Unicode letters, marks,
+// numbers, and connector punctuation; map spaces to hyphens. No hyphen collapse
+// or trim, so anchors match GitHub and non-Latin scripts survive. An all-symbol
+// heading yields an empty slug; fall back to `section` so anchors stay non-empty.
 function slugify(text: string): string {
-  const slashed = text.toLowerCase().replace(/\s+/g, '-');
-  const cleaned = slashed.replace(/[^a-z0-9-]/g, '');
-  const collapsed = cleaned.replace(/-+/g, '-').replace(/^-|-$/g, '');
-  return collapsed || 'section';
+  const cleaned = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, '');
+  return cleaned.replace(/ /g, '-') || 'section';
 }
 
 // `href="#"` (empty fragment) does not win — fall through to slugify.

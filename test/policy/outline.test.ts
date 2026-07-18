@@ -40,6 +40,22 @@ describe('policy.outline resolveOutline', () => {
     ]);
   });
 
+  it('preserves non-ASCII letters instead of collapsing to a fallback slug', () => {
+    const html = '<h2>Café</h2><h3>Введение</h3><h4>日本語</h4>';
+    expect(resolveOutline(doc(html))).toEqual([
+      { level: 2, text: 'Café', anchor: 'café' },
+      { level: 3, text: 'Введение', anchor: 'введение' },
+      { level: 4, text: '日本語', anchor: '日本語' },
+    ]);
+  });
+
+  it('keeps connector punctuation (underscore) in the slug', () => {
+    const html = '<h2>foo_bar</h2>';
+    expect(resolveOutline(doc(html))).toEqual([
+      { level: 2, text: 'foo_bar', anchor: 'foo_bar' },
+    ]);
+  });
+
   it('gives duplicate-text headings distinct anchors (bare, -1, -2)', () => {
     const html = '<h2>Intro</h2><h2>Intro</h2><h2>Intro</h2>';
     expect(resolveOutline(doc(html))).toEqual([
