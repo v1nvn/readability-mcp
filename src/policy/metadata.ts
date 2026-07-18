@@ -1,17 +1,7 @@
 import type { Metadata, StructuredData } from '../pipeline/context.js';
 import type { ReadabilityParseResult } from '../pipeline/readability.js';
 
-export const TOKEN_ESTIMATOR = 'chars/4';
-
-export function estimateTokens(textContent: string): {
-  estimator: string;
-  tokenEstimate: number;
-} {
-  return {
-    tokenEstimate: Math.round(textContent.length / 4),
-    estimator: TOKEN_ESTIMATOR,
-  };
-}
+import { estimateTokens, nonEmpty } from './text.js';
 
 const ARTICLE_TYPES = new Set([
   'Article',
@@ -28,10 +18,6 @@ type JsonLdValue =
   boolean | JsonLdObject | JsonLdValue[] | null | number | string;
 interface JsonLdObject {
   readonly [key: string]: JsonLdValue;
-}
-
-function nonEmpty(value: string | undefined): string | undefined {
-  return value?.trim() ? value : undefined;
 }
 
 function first(...values: readonly (string | undefined)[]): string | undefined {

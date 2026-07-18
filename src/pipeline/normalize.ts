@@ -231,19 +231,35 @@ export function stripBoilerplate(document: Document): number {
   return removed;
 }
 
-export function applySelectorExclude(
+export interface SelectorScope {
+  readonly exclude?: readonly string[];
+  readonly include?: string;
+}
+
+// Scope the document by CSS selector: drop every `exclude` match, then (if
+// `include` matches) replace the body with the first matching subtree.
+export function applySelectors(
   document: Document,
-  exclude: readonly string[],
-): number {
-  let removed = 0;
-  for (const selector of exclude) {
-    const matches = document.querySelectorAll(selector);
-    removed += matches.length;
-    matches.forEach(el => {
-      el.remove();
-    });
+  selectors: SelectorScope | undefined,
+): void {
+  if (!selectors) {
+    return;
   }
-  return removed;
+  if (selectors.exclude) {
+    for (const selector of selectors.exclude) {
+      document.querySelectorAll(selector).forEach(el => {
+        el.remove();
+      });
+    }
+  }
+  if (selectors.include) {
+    const body = document.body;
+    const root = body.querySelector(selectors.include);
+    if (root && root !== body) {
+      body.innerHTML = '';
+      body.appendChild(root);
+    }
+  }
 }
 
 // Matched anywhere in a src (case-insensitive) to flag a lazy-load placeholder.

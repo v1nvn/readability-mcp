@@ -11,6 +11,13 @@ Comments explain *why*, not *what*. The default is no comment. Write one only wh
 - Mark a task done only when `npm run typecheck && npm run lint:fix` is successful.
 - Always do things cleanly — no band-aids or hacks.
 
+# Shared helpers & layering
+
+- A helper belongs in exactly one place — before copying logic, extract it, and converge *every* variant including partial/drifted twins (a `*Exclude`-only copy of a fuller helper still gets folded in or deleted).
+- Imports flow one way, `pipeline/` → `policy/` → `tools/`; a helper lives in the lowest layer that uses it, never the reverse.
+- Don't import upward for a type — give the lower layer its own local structural type; structural compatibility keeps callers working without inverting the dependency.
+- Delete speculative surface (unused option, unreachable branch) rather than carrying it for a caller that doesn't exist.
+
 # MCP documentation
 
 The server documents itself to clients on introspection — never ship a tool, schema field, or identity value that a client would see as blank.

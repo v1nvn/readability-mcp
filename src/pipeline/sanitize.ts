@@ -1,5 +1,4 @@
 import DOMPurify, {
-  type Config as DOMPurifyConfig,
   type DOMPurify as DOMPurifyInstance,
   type WindowLike as DOMPurifyWindow,
 } from 'dompurify';
@@ -8,10 +7,6 @@ export interface SanitizeResult {
   readonly html: string;
   readonly iframesRemoved: number;
   readonly scriptsRemoved: number;
-}
-
-export interface SanitizeOptions {
-  readonly forbidTags?: readonly string[];
 }
 
 function countRemoved(
@@ -31,18 +26,10 @@ function countRemoved(
   return count;
 }
 
-export function sanitizeHtml(
-  dirty: string,
-  window: Window,
-  options?: SanitizeOptions,
-): SanitizeResult {
+export function sanitizeHtml(dirty: string, window: Window): SanitizeResult {
   // DOMPurify's WindowLike is structurally compatible at runtime but not under TS.
   const purify = DOMPurify(window as unknown as DOMPurifyWindow);
-  const config: DOMPurifyConfig = {};
-  if (options?.forbidTags && options.forbidTags.length > 0) {
-    config.FORBID_TAGS = [...options.forbidTags];
-  }
-  const html = purify.sanitize(dirty, config);
+  const html = purify.sanitize(dirty);
   return {
     html,
     iframesRemoved: countRemoved(purify.removed, 'IFRAME'),

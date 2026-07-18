@@ -6,6 +6,7 @@ import { logger } from '../logger.js';
 import { formatPayload } from '../output/format.js';
 import { buildDocument } from '../pipeline/dom.js';
 import {
+  applySelectors,
   canonicalizeCodeBlocks,
   normalizeDocument,
   resolveLazyImages,
@@ -20,6 +21,7 @@ import { detectGating } from '../policy/gating.js';
 import { resolveMetadata } from '../policy/metadata.js';
 import { detectPagination } from '../policy/pagination.js';
 import { resolveReadabilityOptions } from '../policy/resolver.js';
+import { computeTextMetrics } from '../policy/text.js';
 import { truncateMarkdown } from '../policy/truncate.js';
 import { outputSchemaShape } from './output-schema.js';
 import { extractInputSchema, extractInputShape } from './schemas.js';
@@ -29,36 +31,6 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 // Names the extraction path, not a DOM tag — Readability doesn't expose the source node.
 const EXTRACTED_NODE = 'readability';
-
-function countWords(text: string): number {
-  return (text.match(/\S+/g) ?? []).length;
-}
-
-function applySelectors(
-  document: Document,
-  selectors:
-    | undefined
-    | { readonly exclude?: readonly string[]; readonly include?: string },
-): void {
-  if (!selectors) {
-    return;
-  }
-  if (selectors.exclude) {
-    for (const selector of selectors.exclude) {
-      document.querySelectorAll(selector).forEach(el => {
-        el.remove();
-      });
-    }
-  }
-  if (selectors.include) {
-    const body = document.body;
-    const root = body.querySelector(selectors.include);
-    if (root && root !== body) {
-      body.innerHTML = '';
-      body.appendChild(root);
-    }
-  }
-}
 
 export function extractArticle(rawArgs: unknown): CallToolResult {
   const args = extractInputSchema.parse(rawArgs);
@@ -171,9 +143,10 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     sanitizeCounts = fallback.sanitization;
   }
 
-  const wordCount = countWords(textContent);
-  const readingTimeMin =
-    wordCount === 0 ? 0 : Math.max(1, Math.round(wordCount / wordsPerMinute));
+  const { wordCount, readingTimeMin } = computeTextMetrics(
+    textContent,
+    wordsPerMinute,
+  );
   const metadata = resolveMetadata({
     document,
     readability: article,

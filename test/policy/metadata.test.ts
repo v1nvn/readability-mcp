@@ -1,6 +1,6 @@
 import { buildDocument } from '../../src/pipeline/dom.js';
 import type { ReadabilityParseResult } from '../../src/pipeline/readability.js';
-import { estimateTokens, resolveMetadata } from '../../src/policy/metadata.js';
+import { resolveMetadata } from '../../src/policy/metadata.js';
 
 function doc(html: string): Document {
   return buildDocument(html, 'https://example.com/page').document;
@@ -159,20 +159,6 @@ describe('policy.metadata token estimate', () => {
     const m = resolveWith('');
     expect(m.tokenEstimate).toBe(0);
     expect(m.estimator).toBe('chars/4');
-  });
-});
-
-describe('estimateTokens', () => {
-  it('returns chars/4 for prose and names the estimator', () => {
-    const textContent = 'The quick brown fox jumps over the lazy dog near the riverbank.';
-    expect(estimateTokens(textContent)).toEqual({
-      tokenEstimate: Math.round(textContent.length / 4),
-      estimator: 'chars/4',
-    });
-  });
-
-  it('returns zero for empty textContent', () => {
-    expect(estimateTokens('')).toEqual({ tokenEstimate: 0, estimator: 'chars/4' });
   });
 });
 

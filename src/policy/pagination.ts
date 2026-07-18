@@ -1,21 +1,9 @@
+import { absolutize } from '../pipeline/urls.js';
+
 export interface PaginationSignal {
   readonly nextUrl?: string;
   readonly selector?: string;
   readonly type: 'infinite' | 'paginated';
-}
-
-// Mirror turndown's absolutize: try to resolve against the base, fall back to
-// the raw value if the URL is malformed. The host never fetches this — it is
-// the href VALUE found in the DOM, surfaced so chrome-devtools can drive it.
-function absolutize(src: string, baseUrl: string | undefined): string {
-  if (!baseUrl) {
-    return src;
-  }
-  try {
-    return new URL(src, baseUrl).href;
-  } catch {
-    return src;
-  }
 }
 
 // Short pagination-style link text only; matching prose like "next, we cover

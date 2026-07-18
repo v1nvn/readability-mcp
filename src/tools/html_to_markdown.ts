@@ -5,11 +5,15 @@ import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { formatPayload } from '../output/format.js';
 import { buildDocument } from '../pipeline/dom.js';
-import { normalizeDocument, resolveLazyImages } from '../pipeline/normalize.js';
+import {
+  applySelectors,
+  normalizeDocument,
+  resolveLazyImages,
+} from '../pipeline/normalize.js';
 import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
 import { assembleDiagnostics } from '../policy/diagnostics.js';
-import { estimateTokens } from '../policy/metadata.js';
+import { computeTextMetrics, nonEmpty } from '../policy/text.js';
 import { truncateMarkdown } from '../policy/truncate.js';
 import { outputSchemaShape } from './output-schema.js';
 import {
@@ -21,36 +25,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 const EXTRACTED_NODE = 'fragment';
-
-function countWords(text: string): number {
-  return (text.match(/\S+/g) ?? []).length;
-}
-
-function applySelectors(
-  document: Document,
-  selectors:
-    | undefined
-    | { readonly exclude?: readonly string[]; readonly include?: string },
-): void {
-  if (!selectors) {
-    return;
-  }
-  if (selectors.exclude) {
-    for (const selector of selectors.exclude) {
-      document.querySelectorAll(selector).forEach(el => {
-        el.remove();
-      });
-    }
-  }
-  if (selectors.include) {
-    const body = document.body;
-    const root = body.querySelector(selectors.include);
-    if (root && root !== body) {
-      body.innerHTML = '';
-      body.appendChild(root);
-    }
-  }
-}
 
 export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
   const args = htmlToMarkdownInputSchema.parse(rawArgs);
@@ -101,18 +75,13 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     url,
   });
 
-  const wordCount = countWords(textContent);
-  const readingTimeMin =
-    wordCount === 0 ? 0 : Math.max(1, Math.round(wordCount / wordsPerMinute));
   const firstHeading = nonEmpty(
     body.querySelector('h1, h2, h3, h4, h5, h6')?.textContent,
   );
   const metadata = {
     title: firstHeading,
     url,
-    wordCount,
-    readingTimeMin,
-    ...estimateTokens(textContent),
+    ...computeTextMetrics(textContent, wordsPerMinute),
   };
 
   const sanitization: SanitizationDiagnostics = {
@@ -161,10 +130,6 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
       diagnostics,
     },
   };
-}
-
-function nonEmpty(value: string | undefined): string | undefined {
-  return value?.trim() ? value : undefined;
 }
 
 export const HTML_TO_MARKDOWN_TOOL_DESCRIPTION = `Convert an arbitrary HTML fragment to Markdown WITHOUT Readability article extraction (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path as \`extract\`. The server fetches nothing: \`html\` is the only source, and \`url\` (optional) absolutizes relative links.`;
