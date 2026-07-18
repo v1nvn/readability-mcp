@@ -51,9 +51,9 @@ The recall/precision round-trips shipped; the measurement backbone did not. Lead
 **Future / deferred:**
 - **TGT-3 — `extract_list` feed mode** (L, OBS-2b-gated). A second extraction engine; do not start until the full harness exists.
 - **OPS-1 — worker isolation** (M). Infra; deferred pending a holistic worker-strategy decision (see item). The path-independent pieces (`timeout`/`maxNodes` + `TimeoutError → isError`) can land early to bound input size.
-- **OBS-3, OPS-4/5, MCP-2, STR-1** — land when a specific need pulls them forward.
+- **STR-1** — Stretch; deferred pending a concrete no-chrome-devtools audience (see item). **OPS-4** resolved wontfix — the `chunk` option covers it (see Decisions).
 
-**Wontfix (see Decisions):** TGT-6 `extract_code`, TGT-10 `normalize_html`.
+**Wontfix (see Decisions):** TGT-6 `extract_code`, TGT-10 `normalize_html`, OPS-4 `streaming`.
 
 ---
 
@@ -172,12 +172,8 @@ Make extraction quality *measurable* and *debuggable*.
 - **Lands at:** `src/cli.ts` behind a `bin` entry (`readability-mcp` dispatches: no args = MCP server, `extract` = CLI).
 - **Acceptance:** Pipes a saved SPA fixture to markdown on stdout; exit codes on error.
 
-### OPS-4 — Streaming for very large docs  · `Future` · L
-- [ ] Implement
-- **What:** Stream chunked text content instead of one big `content[0].text` for huge pages.
-- **Why:** Multi-MB articles blow up a single tool result.
-- **Lands at:** MCP progress/streaming primitives. **Verify host support first** — not all clients handle streamed tool results; may stay server-side chunking via the `chunk` option instead.
-- **Acceptance:** A large fixture returns without a single multi-MB payload when the host supports it.
+### OPS-4 — Streaming for very large docs  · `Future` · L  (wontfix — see Decisions)
+- **Resolved: Wontfix.** The shipped `chunk` option is the server-side chunking path (emits token-bounded `structuredContent.chunks` so a multi-MB page never returns as one payload); MCP tool-result streaming/progress isn't universally supported by hosts, and the spec itself deferred to `chunk`. Transport-level streaming would add complexity for a need the existing option already covers. See Decisions log.
 
 ### OPS-5 — Smithery manifest + Dockerfile  · `Near` · S
 - [x] Implement
@@ -239,6 +235,7 @@ Recorded so future-us doesn't re-litigate them.
 | `extract_code` tool (TGT-6) | **Wontfix** | Code already rides in the markdown (language tags shipped); a code-only tool is surface for a niche the main path covers. |
 | `normalize_html` mode (TGT-10) | **Wontfix** | The server produces Markdown; sanitized-HTML output is a different product with existing tools (DOMPurify). |
 | Standalone `extract_structured` / `extract_images` tools | **Reject** (option/field on `extract` instead) | They're alternate views of one pipeline, not distinct capabilities — see tool-vs-option rule. |
+| OPS-4 streaming for huge docs | **Wontfix** | The `chunk` option already emits token-bounded server-side chunks (`structuredContent.chunks`) so a multi-MB page isn't one payload; MCP tool-result streaming/progress isn't universally host-supported, and the spec itself deferred to `chunk`. Transport streaming would duplicate a covered need. |
 
 ---
 
