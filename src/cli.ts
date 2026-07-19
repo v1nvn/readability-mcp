@@ -11,11 +11,10 @@ export interface ParsedArgs {
   readonly file: string | undefined;
   readonly format: CliFormat;
   readonly maxChars: number | undefined;
-  readonly stdin: boolean;
 }
 
 const USAGE =
-  'Usage: readability-mcp extract [file.html] [--format md|json|html] [--max-chars N] [--stdin]';
+  'Usage: readability-mcp extract [file.html] [--format md|json|html] [--max-chars N]';
 
 const FORMATS: readonly CliFormat[] = ['html', 'json', 'md'];
 
@@ -31,7 +30,6 @@ export function parseArgs(argv: readonly string[]): ParsedArgs | undefined {
   let file: string | undefined;
   let format: CliFormat = 'md';
   let maxChars: number | undefined;
-  let stdin = false;
 
   const rest = argv.slice(1);
   for (let i = 0; i < rest.length; i++) {
@@ -52,8 +50,6 @@ export function parseArgs(argv: readonly string[]): ParsedArgs | undefined {
         return undefined;
       }
       maxChars = n;
-    } else if (arg === '--stdin') {
-      stdin = true;
     } else if (arg.startsWith('--')) {
       return undefined;
     } else if (file === undefined) {
@@ -63,13 +59,12 @@ export function parseArgs(argv: readonly string[]): ParsedArgs | undefined {
     }
   }
 
-  return { file, format, maxChars, stdin };
+  return { file, format, maxChars };
 }
 
-// `--stdin` is a discoverability alias; stdin is already the default when no
-// file is given, so the reader branches on `file` alone. The stream is injected
-// rather than reading process.stdin directly so the path is testable. Chunks
-// may be Buffer (process.stdin) or string (Readable.from), so both are handled.
+// The stream is injected rather than reading process.stdin directly so the
+// path is testable. Chunks may be Buffer (process.stdin) or string
+// (Readable.from), so both are handled.
 export async function readHtml(
   file: string | undefined,
   stream: Readable,

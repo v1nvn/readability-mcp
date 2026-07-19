@@ -17,7 +17,6 @@ describe('cli parseArgs', () => {
       file: undefined,
       format: 'md',
       maxChars: undefined,
-      stdin: false,
     });
   });
 
@@ -28,16 +27,6 @@ describe('cli parseArgs', () => {
       file: 'a.html',
       format: 'json',
       maxChars: 100,
-      stdin: false,
-    });
-  });
-
-  it('parses the --stdin alias as a no-op boolean', () => {
-    expect(parseArgs(['extract', '--stdin'])).toEqual({
-      file: undefined,
-      format: 'md',
-      maxChars: undefined,
-      stdin: true,
     });
   });
 

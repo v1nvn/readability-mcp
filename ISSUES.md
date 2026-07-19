@@ -153,6 +153,8 @@ The narrative wasn't updated when the scorer landed. (Note: the Shipped list at 
 
 ### ISS-3 (low) — `--stdin` is dead surface
 
+- [x] Fixed.
+
 `src/cli.ts`: `ParsedArgs.stdin` (`:14`) is parsed (`:55-56`) but never read — `readHtml` branches on `file` alone (`:77`). Documented inline (`:69-72`) as a "discoverability alias" since stdin is already the default when no file is given, and surfaced in `USAGE` (`:17`) + the README (`:258`). Defensible UX, but in tension with the project's "delete speculative surface" rule.
 
 - **Author's call:** keep the alias (it's documented and harmless) or remove `ParsedArgs.stdin` + the `--stdin` parse branch + its doc mentions. If kept, no action.

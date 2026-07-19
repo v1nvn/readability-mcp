@@ -251,18 +251,18 @@ The server exposes one MCP prompt:
 `readability-mcp` also runs as a one-shot CLI for extracting from a local HTML file or stdin, with no MCP server in the loop:
 
 ```bash
-readability-mcp extract [file.html] [--format md|json|html] [--max-chars N] [--stdin]
+readability-mcp extract [file.html] [--format md|json|html] [--max-chars N]
 ```
 
 - `extract` is the only subcommand; everything after it is parsed as options. With no args at all (`readability-mcp`), the stdio MCP server starts instead.
-- `file.html` is read from disk; when no file is given, HTML is read from **stdin** (the `--stdin` flag is a discoverability alias for the same behavior).
+- `file.html` is read from disk; when no file is given, HTML is read from **stdin**.
 - `--format`: `md` (default, markdown) | `json` (the `structuredContent` object, pretty-printed) | `html` (the post-pipeline HTML). Internally `json` reuses the markdown pipeline and serializes the structured object on the way out.
 - `--max-chars N` mirrors `extract`'s `maxChars` — truncate the payload at a block boundary, never inside a fenced code block.
 
 ```bash
 curl -s https://example.com | readability-mcp extract --format md
 readability-mcp extract page.html --format json --max-chars 20000
-cat saved.html | readability-mcp extract --stdin
+cat saved.html | readability-mcp extract
 ```
 
 ## Development
