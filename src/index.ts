@@ -3,7 +3,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { createServer } from './server.js';
 
-// Dynamic import so the CLI path doesn't pull in the MCP server/transport modules.
 if (process.argv[2] === 'extract') {
   void import('./cli.js')
     .then(m => m.runCli(process.argv.slice(2)))

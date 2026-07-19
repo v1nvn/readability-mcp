@@ -93,6 +93,8 @@ Caveat: I could not run `npm ci` inside a linux container locally, but the lockf
 
 ### ISS-2 (low) — `index.ts`'s comment misrepresents the dynamic import
 
+- [x] Fixed.
+
 `src/index.ts:6`: *"Dynamic import so the CLI path doesn't pull in the MCP server/transport modules."* But lines 1-4 statically `import` `McpServer`, `StdioServerTransport`, and `createServer` — hoisted and evaluated at module load — so `node dist/index.js extract` has already loaded them before reaching the `if`. The dynamic `import('./cli.js')` does not do what the comment says.
 
 - **Fix (simplest):** drop the comment. Moving the SDK imports into the `else` branch would make the comment true but saves little (the CLI path pulls in `extractArticle` → the pipeline → similar weight), so the clean fix is just to stop claiming it.
