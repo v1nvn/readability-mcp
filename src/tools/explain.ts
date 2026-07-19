@@ -19,7 +19,7 @@ const explainInputShape = {
   html: z
     .string()
     .describe(
-      'Already-rendered HTML (post-JavaScript) to diagnose. Routed through the same normalize + Readability pipeline as `extract`, with Readability`s real per-candidate scores surfaced. This is the ONLY input the server reads; it makes no outbound requests.',
+      "Already-rendered HTML (post-JavaScript) to diagnose. Routed through the same normalize + Readability pipeline as `extract`, with Readability's real per-candidate scores surfaced. This is the ONLY input the server reads; it makes no outbound requests.",
     ),
   url: z
     .url()
@@ -46,18 +46,18 @@ const candidateSchema = z
     className: z
       .string()
       .describe(
-        'The candidate`s class attribute (raw, unsplit). Empty string when absent.',
+        "The candidate's class attribute (raw, unsplit). Empty string when absent.",
       ),
-    id: z.string().describe('The candidate`s id attribute, or empty string.'),
+    id: z.string().describe("The candidate's id attribute, or empty string."),
     score: z
       .number()
       .describe(
-        'Readability`s actual contentScore for this node (link-density-scaled). Higher is better; the top entry is Readability`s raw top candidate before its parent-walking/only-child adjustments.',
+        "Readability's actual contentScore for this node (link-density-scaled). Higher is better; the top entry is Readability's raw top candidate before its parent-walking/only-child adjustments.",
       ),
     selector: z
       .string()
       .describe(
-        'A CSS-ish hint (tag#id.class1.class2) for locating the node in the host DOM. NOT a unique locator — Readability`s score lives on a JS expando invisible to CSS.',
+        "A CSS-ish hint (tag#id.class1.class2) for locating the node in the host DOM. NOT a unique locator — Readability's score lives on a JS expando invisible to CSS.",
       ),
     tag: z
       .string()
@@ -93,7 +93,7 @@ const explainOutputShape = {
   candidates: z
     .array(candidateSchema)
     .describe(
-      'Scored candidate nodes (highest first), capped at topN. These are Readability`s real contentScore values, not a self-computed heuristic.',
+      "Scored candidate nodes (highest first), capped at topN. These are Readability's real contentScore values, not a self-computed heuristic.",
     ),
   readerable: z
     .boolean()
@@ -179,7 +179,7 @@ const explainOutputShape = {
       html: z
         .string()
         .describe(
-          'The sanitized-by-normalization (post chrome/boilerplate/script strip) HTML fed to Readability — "what Readability saw". Not DOMPurify-sanitized; that runs on Readability`s output in `extract`.',
+          'The sanitized-by-normalization (post chrome/boilerplate/script strip) HTML fed to Readability — "what Readability saw". Not DOMPurify-sanitized; that runs on Readability\'s output in `extract`.',
         ),
       truncated: z
         .boolean()

@@ -101,6 +101,8 @@ Caveat: I could not run `npm ci` inside a linux container locally, but the lockf
 
 ### ISS-4 (low) — backtick-as-apostrophe in `explain` schema descriptions
 
+- [x] Fixed.
+
 `src/tools/explain.ts` uses escaped backticks as apostrophes inside single-quoted `.describe()` strings — they render to clients as a literal backtick where an apostrophe belongs: `Readability\`s` (`:22`, `:55`, `:60`, `:96`, `:182`), `candidate\`s` (`:49`, `:51`). Reads as a typo in user-visible schema text.
 
 - **Fix:** replace `` \' `` style with a straight apostrophe inside the single-quoted string (`'Readability\'s …'`) or switch the literal to double quotes. (The backticks in *code comments* elsewhere — `server.ts:54`, `chunk.ts:2`, etc. — are fine; this is only the `.describe()` string literals in `explain.ts`.)
