@@ -1,3 +1,4 @@
+import { isElement } from '../pipeline/dom.js';
 import { normalizeHeadingText } from './outline.js';
 
 interface HeadingMatch {
@@ -68,10 +69,6 @@ function findFlowContainer(heading: Element): Element {
   // BODY is in FLOW_CONTAINERS, so the loop reaches it for any attached
   // heading; this fallback only covers a detached heading.
   return heading.ownerDocument.body;
-}
-
-function isElement(node: Node): node is Element {
-  return node.nodeType === 1;
 }
 
 // Level of the first heading at or inside `el`, or undefined when `el` is

@@ -17,3 +17,7 @@ export function buildDocument(html: string, url?: string): BuiltDocument {
   const dom = new JSDOM(html, { url });
   return { document: dom.window.document, window: dom.window };
 }
+
+export function isElement(node: Node): node is Element {
+  return node.nodeType === 1;
+}

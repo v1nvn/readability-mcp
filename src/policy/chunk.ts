@@ -5,11 +5,7 @@
 // MCP tool-result progress isn't universally host-supported, and this option
 // already keeps a multi-MB page from returning as one payload.
 
-import {
-  hardSplitLines,
-  headingText as headingLabel,
-  parseBlocks,
-} from './markdown.js';
+import { hardSplitLines, headingText, parseBlocks } from './markdown.js';
 
 export interface Chunk {
   readonly headingContext: string;
@@ -45,11 +41,6 @@ interface Span {
 }
 
 const HEADING_FIRST_LINE = /^#{1,6}\s/;
-
-function headingText(blockText: string): string {
-  const firstLine = blockText.split('\n', 1)[0] ?? '';
-  return firstLine.replace(/^#{1,6}\s+/, '').trim();
-}
 
 function splitBlocks(markdown: string): Block[] {
   const parts = markdown.split(/\n{2,}/);
@@ -238,7 +229,7 @@ function parseSemanticUnits(markdown: string): SemanticUnit[] {
       while (stack.length > 0 && stack[stack.length - 1].level >= block.depth) {
         stack.pop();
       }
-      stack.push({ level: block.depth, text: headingLabel(text) });
+      stack.push({ level: block.depth, text: headingText(text) });
       units.push({ headingContext: context(), kind: 'heading', text });
       continue;
     }

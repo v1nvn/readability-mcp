@@ -1,3 +1,4 @@
+import { isElement } from '../pipeline/dom.js';
 import { absolutize } from '../pipeline/urls.js';
 
 export interface ListItem {
@@ -237,10 +238,6 @@ function distinctPathnames(items: readonly ListItem[]): number {
     }
   }
   return paths.size;
-}
-
-function isElement(node: Node): node is Element {
-  return node.nodeType === 1;
 }
 
 function collectCandidates(document: Document, baseUrl: string | undefined) {

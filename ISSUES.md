@@ -167,8 +167,8 @@ The narrative wasn't updated when the scorer landed. (Note: the Shipped list at 
 
 ### ISS-13 (low) — duplicated helpers (`headingText`, `isElement`)
 
-- [ ] **`headingText` exists twice.** `policy/chunk.ts:42-45` defines a local `headingText(blockText)` (splits to the first line, then strips `^#{1,6}\s+`), while also importing `headingText as headingLabel` from `policy/markdown.ts` (`:5`, defined `:43-45` as `raw.replace(/^#{1,6}\s+/, '').trim()`). They are functionally equivalent for a heading-anchored block. Consolidate onto one (the char path's first-line split is defensive but unnecessary given the heading is already on the first line — fold it into the shared helper or call the shared one).
-- [ ] **`isElement` is byte-identical** in `policy/list-detector.ts:240-242` and `policy/section.ts:73-75` (`node.nodeType === 1`). A one-liner type guard, but the project rule is to converge every variant. Hoist to a shared low-layer helper (e.g. `policy/text.ts` or a new `pipeline/dom` util) and import from both.
+- [x] **`headingText` exists twice.** `policy/chunk.ts:42-45` defines a local `headingText(blockText)` (splits to the first line, then strips `^#{1,6}\s+`), while also importing `headingText as headingLabel` from `policy/markdown.ts` (`:5`, defined `:43-45` as `raw.replace(/^#{1,6}\s+/, '').trim()`). They are functionally equivalent for a heading-anchored block. Consolidate onto one (the char path's first-line split is defensive but unnecessary given the heading is already on the first line — fold it into the shared helper or call the shared one).
+- [x] **`isElement` is byte-identical** in `policy/list-detector.ts:240-242` and `policy/section.ts:73-75` (`node.nodeType === 1`). A one-liner type guard, but the project rule is to converge every variant. Hoist to a shared low-layer helper (e.g. `policy/text.ts` or a new `pipeline/dom` util) and import from both.
 
 ### ISS-14 (informational) — accepted: `dev.ts` `oninitialized` captures `first`
 
