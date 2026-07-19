@@ -77,10 +77,19 @@ function pruneToMax(): void {
 // pages. Each rule targets a specific known-volatile source.
 function normalizeForHash(html: string): string {
   let s = html;
-  // Inline and external scripts carry CSP nonces, build hashes, A/B test
-  // buckets — same page, different bytes on every render.
-  s = s.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
-  s = s.replace(/<script\b[^>]*\/?>/gi, '');
+  // Non-JSON-LD scripts carry CSP nonces, build hashes, A/B test buckets —
+  // same page, different bytes on every render — so strip them. Preserve
+  // <script type="application/ld+json">: structured metadata is content, so
+  // a changed datePublished must bust the cache. Mirrors the extraction
+  // normalizer in pipeline/normalize.ts.
+  s = s.replace(
+    /<script\b(?![^>]*type\s*=\s*["']application\/ld\+json["'])[^>]*>[\s\S]*?<\/script>/gi,
+    '',
+  );
+  s = s.replace(
+    /<script\b(?![^>]*type\s*=\s*["']application\/ld\+json["'])[^>]*\/?>/gi,
+    '',
+  );
   // CSP <meta http-equiv="Content-Security-Policy"> carries the per-response
   // nonce directive — strip the whole tag.
   s = s.replace(

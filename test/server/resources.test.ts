@@ -8,7 +8,11 @@ import { describe, expect, it } from 'vitest';
 
 import { extractArticle } from '../../src/tools/extract.js';
 import { outputSchema } from '../../src/tools/output-schema.js';
-import { resetCache, registerResources } from '../../src/resources.js';
+import {
+  normalizedHashOf,
+  registerResources,
+  resetCache,
+} from '../../src/resources.js';
 import { createMcpServer } from '../../src/server.js';
 
 interface LoopbackTransport {
@@ -173,6 +177,42 @@ describe('extract cache:true — diagnostics.cache', () => {
     expect(htmlDiag?.normalizedHash).toBe(mdDiag?.normalizedHash);
     expect(htmlDiag?.originalHash).toBe(mdDiag?.originalHash);
     expect(payloadOf(htmlResult)).not.toBe(payloadOf(md));
+  });
+
+  it('preserves <script type="application/ld+json"> in hash normalization', () => {
+    // Structured metadata is content, not volatility: two renders that differ
+    // only in the JSON-LD payload (e.g. an updated datePublished) must NOT
+    // collapse to the same cache key, or the cache would serve a stale
+    // publishedTime. Mirrors the extraction normalizer in pipeline/normalize.ts
+    // which preserves ld+json via `script:not([type="application/ld+json"])`.
+    const pageWithJan = `<html><head>
+<script type="application/ld+json">{"@type":"NewsArticle","datePublished":"2026-01-01"}</script>
+</head><body><article><h1>Title</h1>
+<p>One two three four five six seven eight nine ten.</p>
+</article></body></html>`;
+    const pageWithFeb = `<html><head>
+<script type="application/ld+json">{"@type":"NewsArticle","datePublished":"2026-02-02"}</script>
+</head><body><article><h1>Title</h1>
+<p>One two three four five six seven eight nine ten.</p>
+</article></body></html>`;
+
+    expect(normalizedHashOf(pageWithJan)).not.toBe(normalizedHashOf(pageWithFeb));
+
+    // Carve-out precision: varying the BODY of a NON-ld+json script (not just
+    // a nonce attribute, which the nonce-stripping rule would already equalize)
+    // still collapses to the same hash. The ld+json carve-out must not weaken
+    // the existing script stripping.
+    const withScriptOne = `<html><body><script>console.log("a")</script></body></html>`;
+    const withScriptTwo = `<html><body><script>console.log("b")</script></body></html>`;
+    expect(normalizedHashOf(withScriptOne)).toBe(normalizedHashOf(withScriptTwo));
+
+    // Single-quoted type attribute is also recognized as ld+json.
+    const singleQuoted = `<html><head>
+<script type='application/ld+json'>{"@type":"NewsArticle","datePublished":"2026-03-03"}</script>
+</head><body><article><h1>Title</h1>
+<p>One two three four five six seven eight nine ten.</p>
+</article></body></html>`;
+    expect(normalizedHashOf(singleQuoted)).not.toBe(normalizedHashOf(pageWithJan));
   });
 });
 

@@ -53,6 +53,8 @@ Three fields on `listItemSchema` describe states the implementation never produc
 
 ### ISS-10 (low-medium) — Cache normalizer strips JSON-LD, inconsistent with extraction
 
+- [x] Fixed.
+
 `src/resources.ts:82-83` removes *all* `<script>` blocks including `<script type="application/ld+json">`, but the comment (`:80-81`) justifies script-stripping only for "CSP nonces, build hashes, A/B test buckets" — none of which live in ld+json.
 
 - Two re-renders of the same page whose only difference is changed structured metadata (e.g. an updated `datePublished`) collapse to the same `normalizedHash` → cache hit → stale `metadata.structured` / `publishedTime`.
