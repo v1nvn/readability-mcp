@@ -36,6 +36,10 @@ export function extractSection(rawArgs: unknown): CallToolResult {
   // Heading mode: wrap the matched subtree, re-serialize, and route through
   // extractArticle's selectors.include so this tool stays a thin resolver over
   // the existing extraction pipeline — no forked extraction logic.
+  // The DOM is parsed+normalized twice: here to scope against a normalized
+  // DOM, and again inside extractArticle — which owns detectGating-before-
+  // normalize, resolveLazyImages, and applySelectors. Folding scoping into
+  // that pipeline would breach its invariants for a non-hot path; accepted.
   const { document } = buildDocument(html, url);
   normalizeDocument(document);
   if (!scopeToHeading(document, heading)) {

@@ -163,6 +163,8 @@ The narrative wasn't updated when the scorer landed. (Note: the Shipped list at 
 
 ### ISS-12 (low) — `extract_section` heading mode parses + normalizes twice
 
+- [~-] Accepted: the double parse+normalize is deliberate — scoping needs a normalized DOM, and folding section-scoping into `extractArticle`'s normalize→applySelectors ordering would breach its `detectGating`-before-normalize invariant for a non-hot path. Tradeoff documented in `src/tools/extract_section.ts`.
+
 `src/tools/extract_section.ts:39-49` (heading mode): `buildDocument` (parse) → `normalizeDocument` (normalize, **without** `resolveLazyImages`) → `scopeToHeading` → re-serialize `document.body.innerHTML` (`:44`) → `extractArticle({ html: scoped, … })`, which itself calls `buildDocument` (parse again) + `normalizeDocument` + `resolveLazyImages` (`extract.ts:100-132`). For a large page this doubles parse + normalize. Correctness holds (the pipeline is idempotent; the missing first-pass `resolveLazyImages` is harmless only because the downstream `extractArticle` call runs it).
 
 - Purely efficiency. Defeats some of the "without paying for full extraction" promise (README:110). **Fix options:** (a) accept the cost (heading mode is a debug/convenience path, not the hot path) — document it; (b) refactor `extractArticle` to accept a pre-built `Document` so heading mode can hand the already-normalized, already-scoped doc straight through without re-serializing. (b) is the clean fix but touches the extract API surface.
