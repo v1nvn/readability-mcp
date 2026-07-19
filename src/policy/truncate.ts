@@ -1,4 +1,4 @@
-import { parseBlocks } from './markdown.js';
+import { hardSplitLines, parseBlocks } from './markdown.js';
 
 export interface TruncateResult {
   readonly text: string;
@@ -26,6 +26,18 @@ export function truncateMarkdown(
   for (const block of blocks) {
     const from = start === -1 ? block.start : start;
     if (block.end - from > maxChars) {
+      // First non-code block alone overflows: take a line-aware prefix instead
+      // of dropping everything. A code block is never split — a half-open fence
+      // is unrecoverable — so an oversized first code block stays dropped.
+      if (start === -1 && block.kind !== 'code') {
+        const firstPiece =
+          hardSplitLines(markdown.slice(block.start, block.end), maxChars)[0] ??
+          '';
+        return {
+          text: firstPiece.replace(/\s+$/, '') + TRUNCATION_MARKER,
+          truncated: true,
+        };
+      }
       truncated = true;
       break;
     }

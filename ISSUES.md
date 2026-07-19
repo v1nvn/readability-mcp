@@ -43,6 +43,8 @@ Three fields on `listItemSchema` describe states the implementation never produc
 
 ### ISS-9 (low-medium) — `truncateMarkdown` drops all content when the first block exceeds `maxChars`
 
+- [x] Fixed.
+
 `policy/truncate.ts:22-42`. The loop breaks as soon as a block would overflow the budget measured from `start`. For the *first* block, `from = block.start` and the own-length check `block.end - from > maxChars` trips before `start` is ever set, so `start` stays `-1` and `kept = ''`. The payload becomes just `\n\n…[truncated]` — total content loss. A 5000-char opening paragraph with `maxChars: 1000` yields nothing.
 
 - This is tested (`test/policy/truncate.test.ts:57-63`) but only to assert a sole oversized **code** block is excluded rather than split — not that content survives.

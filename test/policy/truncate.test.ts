@@ -61,6 +61,33 @@ describe('policy.truncate', () => {
     expect(fenceCount(res.text) % 2).toBe(0);
     expect(res.text).not.toContain('const b');
   });
+
+  it('hard-splits an oversized first non-code block instead of dropping it', () => {
+    const hugeParagraph = 'a'.repeat(5000);
+    const md = `${hugeParagraph}\n\nSecond paragraph that should not appear.`;
+    const res = truncateMarkdown(md, 1000);
+
+    expect(res.truncated).toBe(true);
+    expect(res.text).not.toBe('\n\n…[truncated]');
+    expect(res.text.length).toBeGreaterThan(0);
+    expect(res.text).toMatch(/…\[truncated\]$/);
+    // The opening paragraph's prefix must survive — line-aware, so the kept
+    // body is at most maxChars of the original run, never the empty drop.
+    expect(res.text.startsWith(hugeParagraph.slice(0, 1000))).toBe(true);
+    expect(res.text).not.toContain('Second paragraph');
+    expect(res.text).toContain('a'.repeat(1000));
+  });
+
+  it('drops an oversized first fenced code block rather than splitting the fence', () => {
+    const codeBody = 'const x = 1;\n'.repeat(400); // ~6000 chars inside the fence
+    const md = '```ts\n' + codeBody + '```\n\nTrailing paragraph.';
+    const res = truncateMarkdown(md, 500);
+
+    expect(res.truncated).toBe(true);
+    // Fence guarantee: the oversized first code block is never split open.
+    expect(fenceCount(res.text) % 2).toBe(0);
+    expect(res.text).not.toContain('const x');
+  });
 });
 
 describe('extract truncation contract', () => {

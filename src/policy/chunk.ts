@@ -5,7 +5,11 @@
 // MCP tool-result progress isn't universally host-supported, and this option
 // already keeps a multi-MB page from returning as one payload.
 
-import { headingText as headingLabel, parseBlocks } from './markdown.js';
+import {
+  hardSplitLines,
+  headingText as headingLabel,
+  parseBlocks,
+} from './markdown.js';
 
 export interface Chunk {
   readonly headingContext: string;
@@ -62,37 +66,6 @@ function splitBlocks(markdown: string): Block[] {
     blocks.push({ headingContext: heading, text });
   }
   return blocks;
-}
-
-// Hard-cap a run to <= maxChars pieces: pack whole lines, then hard-split any
-// single line that alone exceeds the budget.
-function hardSplitLines(text: string, maxChars: number): string[] {
-  const pieces: string[] = [];
-  let buffer = '';
-  function flush(): void {
-    if (buffer) {
-      pieces.push(buffer);
-      buffer = '';
-    }
-  }
-  for (const line of text.split('\n')) {
-    if (line.length > maxChars) {
-      flush();
-      for (let i = 0; i < line.length; i += maxChars) {
-        pieces.push(line.slice(i, i + maxChars));
-      }
-      continue;
-    }
-    const candidate = buffer ? `${buffer}\n${line}` : line;
-    if (candidate.length > maxChars) {
-      flush();
-      buffer = line;
-    } else {
-      buffer = candidate;
-    }
-  }
-  flush();
-  return pieces;
 }
 
 // Char strategy may break a code block — the semantic strategy avoids that.

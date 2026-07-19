@@ -43,3 +43,34 @@ export function parseBlocks(source: string): MarkdownBlock[] {
 export function headingText(raw: string): string {
   return raw.replace(HEADING_MARKERS, '').trim();
 }
+
+// Hard-cap a run to <= maxChars pieces: pack whole lines, then hard-split any
+// single line that alone exceeds the budget.
+export function hardSplitLines(text: string, maxChars: number): string[] {
+  const pieces: string[] = [];
+  let buffer = '';
+  function flush(): void {
+    if (buffer) {
+      pieces.push(buffer);
+      buffer = '';
+    }
+  }
+  for (const line of text.split('\n')) {
+    if (line.length > maxChars) {
+      flush();
+      for (let i = 0; i < line.length; i += maxChars) {
+        pieces.push(line.slice(i, i + maxChars));
+      }
+      continue;
+    }
+    const candidate = buffer ? `${buffer}\n${line}` : line;
+    if (candidate.length > maxChars) {
+      flush();
+      buffer = line;
+    } else {
+      buffer = candidate;
+    }
+  }
+  flush();
+  return pieces;
+}
