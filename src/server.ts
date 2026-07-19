@@ -31,6 +31,11 @@ export function createMcpServer(): McpServer {
   return new McpServer({ name, version, title, description }, { instructions });
 }
 
+// A tool earns its place only by skipping a pipeline stage (outline,
+// extract_metadata skip Readability) or returning a fundamentally different
+// shape (extract_list is a second engine). Alternate views of the one pipeline
+// — tables, images, structured data, code — are options or fields on `extract`,
+// not separate tools; that keeps the MCP surface small and the pipeline deep.
 export function registerTools(server: McpServer): ToolHandle[] {
   return [
     registerChunkTextTool(server),

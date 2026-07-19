@@ -27,6 +27,10 @@ export function toMarkdown(
 ): string {
   const service = new TurndownService({
     bulletListMarker: '-',
+    // Code renders inline in the Markdown as fenced blocks; normalize rewrites
+    // source conventions to `<code class="language-X">` first, so the fence
+    // carries a language tag. A code-only extraction tool was rejected as
+    // redundant surface for a niche the main path already covers.
     codeBlockStyle: options?.codeBlockStyle ?? 'fenced',
     emDelimiter: '_',
     fence: '```',

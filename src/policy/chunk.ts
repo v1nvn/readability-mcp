@@ -1,6 +1,9 @@
 // Token-bounded chunking of extracted markdown for RAG/embedding. The
 // `chars/4` estimator mirrors policy/metadata.ts so a chunk's `tokenCount` is
-// directly comparable to `metadata.tokenEstimate`.
+// directly comparable to `metadata.tokenEstimate`. This is the server-side
+// chunking path for large documents; transport-level streaming was rejected —
+// MCP tool-result progress isn't universally host-supported, and this option
+// already keeps a multi-MB page from returning as one payload.
 
 import { headingText as headingLabel, parseBlocks } from './markdown.js';
 

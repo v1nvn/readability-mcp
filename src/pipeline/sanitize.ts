@@ -26,6 +26,10 @@ function countRemoved(
   return count;
 }
 
+// DOMPurify scrubs Readability's output (scripts, inline event handlers,
+// iframes) before Turndown converts it to Markdown — it is a pipeline stage,
+// not a product. A sanitized-HTML output mode was rejected: the server emits
+// Markdown, and callers wanting sanitized HTML should run DOMPurify directly.
 export function sanitizeHtml(dirty: string, window: Window): SanitizeResult {
   // DOMPurify's WindowLike is structurally compatible at runtime but not under TS.
   const purify = DOMPurify(window as unknown as DOMPurifyWindow);

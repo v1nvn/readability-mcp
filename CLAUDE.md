@@ -7,7 +7,6 @@ Comments explain *why*, not *what*. The default is no comment. Write one only wh
 - Add a comment only when its absence would mislead a future reader: a non-obvious invariant, a subtle cross-layer contract, or a "why" that prevents a bug. If you can't point to that, the comment doesn't get written.
 - `eslint-disable` / `@ts-*` pragmas are functional, not commentary.
 
-- Use TODO.md to track issues, features and all progress.
 - Mark a task done only when `npm run typecheck && npm run lint:fix` is successful.
 - Green tests aren't proof of behaviour — exercise a runtime change end-to-end through the connected MCP server (hot-reloaded via `npm run dev`, wired in `.mcp.json`), so your edits are already live to call.
 - Always do things cleanly — no band-aids or hacks.
