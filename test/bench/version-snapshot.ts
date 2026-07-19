@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,11 +65,11 @@ export function snapshotFixtures(outDir: string): SnapshotResult {
     writeFileSync(join(outDir, `${name}.md`), markdown);
   }
 
+  const readabilityPkgPath = createRequire(import.meta.url).resolve(
+    '@mozilla/readability/package.json',
+  );
   const readabilityPkg = JSON.parse(
-    readFileSync(
-      join(here, '../../node_modules/@mozilla/readability/package.json'),
-      'utf8',
-    ),
+    readFileSync(readabilityPkgPath, 'utf8'),
   ) as { version?: string };
 
   return {

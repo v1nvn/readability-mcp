@@ -34,21 +34,19 @@ jobs:
       - uses: actions/setup-node@v6
         if: steps.check.outputs.skip == 'false'
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Trusted publishing needs npm >= 11.5.1
+          cache: yarn
+      - run: corepack enable
         if: steps.check.outputs.skip == 'false'
-        run: npm install -g npm@^11
-
-      - run: npm ci
+      - run: yarn install --immutable
         if: steps.check.outputs.skip == 'false'
-      - run: npm run build
+      - run: yarn build
         if: steps.check.outputs.skip == 'false'
 
       - name: Publish to npm via trusted publishing
         if: steps.check.outputs.skip == 'false'
-        run: npm publish
+        run: yarn npm publish --provenance
 
       - name: Create GitHub Release
         if: steps.check.outputs.skip == 'false'

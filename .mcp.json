@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "readability": {
-      "command": "npm",
-      "args": ["run", "dev"]
+      "command": "yarn",
+      "args": ["dev"]
     }
   }
 }

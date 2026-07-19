@@ -23,21 +23,22 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
+          node-version: '24'
+          cache: yarn
+      - run: corepack enable
+      - run: yarn install --immutable
 
       - name: Snapshot baseline version
         run: |
-          npm install "@mozilla/readability@${{ inputs.from_version || '0.6.0' }}"
-          echo "FROM_VERSION=$(node -p "require('./node_modules/@mozilla/readability/package.json').version")" >> "$GITHUB_ENV"
-          npx vite-node test/bench/version-snapshot.ts --out snapshot-from
+          yarn add "@mozilla/readability@${{ inputs.from_version || '0.6.0' }}"
+          echo "FROM_VERSION=$(yarn node -p "require('@mozilla/readability/package.json').version")" >> "$GITHUB_ENV"
+          yarn exec vite-node test/bench/version-snapshot.ts --out snapshot-from
 
       - name: Snapshot comparison version
         run: |
-          npm install "@mozilla/readability@${{ inputs.to_version || 'latest' }}"
-          echo "TO_VERSION=$(node -p "require('./node_modules/@mozilla/readability/package.json').version")" >> "$GITHUB_ENV"
-          npx vite-node test/bench/version-snapshot.ts --out snapshot-to
+          yarn add "@mozilla/readability@${{ inputs.to_version || 'latest' }}"
+          echo "TO_VERSION=$(yarn node -p "require('@mozilla/readability/package.json').version")" >> "$GITHUB_ENV"
+          yarn exec vite-node test/bench/version-snapshot.ts --out snapshot-to
 
       # `git diff --no-index` exits 1 whenever the trees differ, which is the
       # whole point of this job — swallow that exit so the step is green.

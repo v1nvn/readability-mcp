@@ -12,7 +12,17 @@ import { defineConfig } from 'eslint/config';
 export default defineConfig([
   {
     // tmp/ holds a foreign reference clone with its own eslint config; never lint it.
-    ignores: ['node_modules', 'dist/**', 'build', 'coverage', '**/.act/**', 'tmp/**'],
+    ignores: [
+      'node_modules',
+      'dist/**',
+      'build',
+      'coverage',
+      '**/.act/**',
+      'tmp/**',
+      '.pnp.cjs',
+      '.pnp.loader.mjs',
+      '.yarn/**',
+    ],
   },
   {
     extends: [
