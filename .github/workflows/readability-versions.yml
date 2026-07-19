@@ -25,11 +25,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      # The committed lockfile has darwin-only gaps; `npm install` (not `ci`)
-      # resolves the dev toolchain on linux. Subsequent `npm install
-      # @mozilla/readability@<ver>` swaps the version in-place without
-      # rewriting the lockfile on disk in a way we commit.
-      - run: npm install
+      - run: npm ci
 
       - name: Snapshot baseline version
         run: |
