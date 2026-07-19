@@ -109,6 +109,8 @@ Caveat: I could not run `npm ci` inside a linux container locally, but the lockf
 
 ### ISS-5 (low) — tautological assertion in `resources.test.ts`
 
+- [x] Fixed.
+
 `test/server/resources.test.ts:112-116`:
 
 ```ts

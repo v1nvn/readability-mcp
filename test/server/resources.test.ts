@@ -113,11 +113,6 @@ describe('extract cache:true — diagnostics.cache', () => {
     const firstDiag = readDiagnostics(first);
     expect(firstDiag.cache).toMatchObject({ hit: false });
     expect(typeof firstDiag.cache?.normalizedHash).toBe('string');
-    expect(firstDiag.cache?.normalizedHash).toBe(
-      firstDiag.cache?.originalHash === firstDiag.cache?.normalizedHash
-        ? firstDiag.cache?.normalizedHash
-        : firstDiag.cache?.normalizedHash,
-    );
 
     const second = extractArticle({
       cache: true,
