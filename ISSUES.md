@@ -125,6 +125,8 @@ Both ternary branches are `firstDiag.cache?.normalizedHash`, so this reduces to 
 
 ### ISS-7 (low) — README lead over-generalizes diagnostics
 
+- [x] Fixed.
+
 `README.md:70`: *"All ten always-on tools return MCP structured content (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`."* Only some do. Verified by output schema: a top-level `diagnostics` key exists only on `extract`/`html_to_markdown`/`extract_section` (they share `outputSchemaShape`) and `extract_list` (`output-schema.ts:157`, `:565`). `explain`, `extract_tables`, `extract_links`, `extract_metadata`, `outline`, and `chunk_text` have no `diagnostics` (and `chunk_text`/`explain` have no `metadata` either). The per-tool sections further down are accurate — only the lead over-generalizes.
 
 - **Fix:** soften the parenthetical to something like "structured content (`schemaVersion` plus a tool-specific payload of `metadata`/`diagnostics`/`items`/…)" so it doesn't promise `diagnostics` on every tool.

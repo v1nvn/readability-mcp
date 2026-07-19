@@ -67,7 +67,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All ten always-on tools return MCP **structured content** (`schemaVersion`, `metadata`, `diagnostics`) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. A sampling-capable host also sees an eleventh — `summarize` — registered after the `initialize` handshake when the client advertises the MCP `sampling` capability. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All ten always-on tools return MCP **structured content** (`schemaVersion` plus a tool-specific payload of `metadata` / `diagnostics` / `items` / …) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. A sampling-capable host also sees an eleventh — `summarize` — registered after the `initialize` handshake when the client advertises the MCP `sampling` capability. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 ### `extract` — primary tool
 
