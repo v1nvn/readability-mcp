@@ -64,6 +64,8 @@ Three fields on `listItemSchema` describe states the implementation never produc
 
 ### ISS-11 (informational) — `explain` snapshot is not DOMPurify-sanitized
 
+- [x] Fixed.
+
 `policy/explain.ts:139` snapshots `document.body.innerHTML` after `normalizeDocument` (which strips scripts/base/nonce but **not** inline event handlers — only DOMPurify does that, and `explain` intentionally skips it). So `snapshot.html` can carry `onerror=`/`onclick=` handlers.
 
 - Already documented: `tools/explain.ts:182` — *"Not DOMPurify-sanitized; that runs on Readability's output in `extract`."*

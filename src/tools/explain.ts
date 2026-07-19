@@ -179,7 +179,7 @@ const explainOutputShape = {
       html: z
         .string()
         .describe(
-          'The sanitized-by-normalization (post chrome/boilerplate/script strip) HTML fed to Readability — "what Readability saw". Not DOMPurify-sanitized; that runs on Readability\'s output in `extract`.',
+          'The sanitized-by-normalization (post chrome/boilerplate/script strip) HTML fed to Readability — "what Readability saw". Not DOMPurify-sanitized (that runs on Readability\'s output in `extract`), so it may still carry inline event handlers (`onerror`/`onclick`/…); it is diagnostic data — do not render verbatim.',
         ),
       truncated: z
         .boolean()
