@@ -133,6 +133,8 @@ Both ternary branches are `firstDiag.cache?.normalizedHash`, so this reduces to 
 
 ### ISS-8 (low) — `TODO.md` contradicts itself about OBS-2b
 
+- [~-] Wontfix: `TODO.md` was removed in `c28e8a1`, so the contradiction no longer exists in source. Scorer confirmed shipped — `test/bench/run.ts` imports `scoreFixture` (which wraps `scorePrecisionRecall`), `bench.test.ts` tests it directly, and `README.md:280` accurately describes the precision/recall table.
+
 The OBS-2b precision/recall scorer **did** ship: `test/bench/scorer.ts` implements `scorePrecisionRecall` (`:54-68`) and it is wired into `run.ts` (import `:9`; per-fixture `:59`/`:253`; the precision/recall + macro-average tables `:146-189`), with labels in `test/bench/labels.ts`. `TODO.md:122` marks OBS-2b `[x] Implement`. But the prose says the opposite:
 
 - `TODO.md:9` — *"what remains is the measurement backbone (benchmark harness)"*
