@@ -1,6 +1,6 @@
 {
   "name": "readability-mcp",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "MCP server that turns rendered (post-JS) HTML into clean Markdown + metadata via Readability, Turndown, and DOMPurify.",
   "type": "module",
   "main": "dist/index.js",
