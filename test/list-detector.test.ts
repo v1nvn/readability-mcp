@@ -113,3 +113,88 @@ describe('extract_list tool', () => {
     expect(structured.content).toMatch(/not a list/i);
   });
 });
+
+// Snippet contract: empty for title-only items, the clipped body otherwise.
+// Inline HTML mirrors the search fixture's `<div class="g">` sibling-anchor
+// shape (newlines between title and body produce the separator text node the
+// detector's `slice(title.length + 1)` relies on) so the test exercises the
+// same detection path real feeds use.
+describe('extractItem: snippet resolution', () => {
+  function listHtml(items: string): string {
+    return `<html><body><main><div id="list">${items}</div></main></body></html>`;
+  }
+
+  it('emits an empty snippet for a title-only item (anchor text, no surrounding body)', () => {
+    const html = listHtml(
+      '<div class="g"><a href="https://example.com/a">Title only A</a></div>\n' +
+        '<div class="g"><a href="https://example.com/b">Title only B</a></div>\n' +
+        '<div class="g"><a href="https://example.com/c">Title only C</a></div>',
+    );
+    const { document } = buildDocument(html, 'https://example.com/');
+    const result = detectList(document, 'https://example.com/');
+    expect(result.detected).toBe(true);
+    expect(result.items.length).toBe(3);
+    for (const item of result.items) {
+      expect(item.title.length).toBeGreaterThan(0);
+      expect(item.url.length).toBeGreaterThan(0);
+      expect(item.snippet).toBe('');
+    }
+  });
+
+  it('emits a non-empty snippet (the clipped body) when body text follows the title', () => {
+    const html = listHtml(
+      '<div class="g">\n' +
+        '  <a href="https://example.com/a">Title with body</a>\n' +
+        '  <p>Body text beyond the title that should become the snippet.</p>\n' +
+        '</div>\n' +
+        '<div class="g">\n' +
+        '  <a href="https://example.com/b">Second title</a>\n' +
+        '  <p>Second body that should be clipped into the snippet field.</p>\n' +
+        '</div>\n' +
+        '<div class="g">\n' +
+        '  <a href="https://example.com/c">Third title</a>\n' +
+        '  <p>Third body that should be clipped into the snippet field.</p>\n' +
+        '</div>',
+    );
+    const { document } = buildDocument(html, 'https://example.com/');
+    const result = detectList(document, 'https://example.com/');
+    expect(result.detected).toBe(true);
+    expect(result.items.length).toBe(3);
+    for (const item of result.items) {
+      expect(item.snippet.length).toBeGreaterThan(0);
+      expect(item.snippet).not.toBe(item.title);
+    }
+    const byUrl = new Map(result.items.map(item => [item.url, item]));
+    expect(byUrl.get('https://example.com/a')?.snippet).toBe(
+      'Body text beyond the title that should become the snippet.',
+    );
+  });
+
+  it('mixes title-only and title+body items in the same list', () => {
+    const html = listHtml(
+      '<div class="g"><a href="https://example.com/a">Title only</a></div>\n' +
+        '<div class="g">\n' +
+        '  <a href="https://example.com/b">With body</a>\n' +
+        '  <p>Body text that should become the snippet.</p>\n' +
+        '</div>\n' +
+        '<div class="g"><a href="https://example.com/c">Also title only</a></div>\n' +
+        '<div class="g">\n' +
+        '  <a href="https://example.com/d">Another with body</a>\n' +
+        '  <p>More body text for the snippet.</p>\n' +
+        '</div>',
+    );
+    const { document } = buildDocument(html, 'https://example.com/');
+    const result = detectList(document, 'https://example.com/');
+    expect(result.detected).toBe(true);
+    expect(result.items.length).toBe(4);
+    const byUrl = new Map(result.items.map(item => [item.url, item]));
+    expect(byUrl.get('https://example.com/a')?.snippet).toBe('');
+    expect(byUrl.get('https://example.com/b')?.snippet).toBe(
+      'Body text that should become the snippet.',
+    );
+    expect(byUrl.get('https://example.com/c')?.snippet).toBe('');
+    expect(byUrl.get('https://example.com/d')?.snippet).toBe(
+      'More body text for the snippet.',
+    );
+  });
+});

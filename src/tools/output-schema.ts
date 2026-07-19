@@ -536,12 +536,12 @@ const listItemSchema = z
     title: z
       .string()
       .describe(
-        'Primary anchor text (longest-text <a> in the item, whitespace-collapsed). Falls back to the first heading text only when no anchor has text.',
+        'Primary anchor text (longest-text <a> in the item, whitespace-collapsed). Always non-empty for emitted items.',
       ),
     url: z
       .string()
       .describe(
-        'Absolute href of the primary anchor, resolved against url. Empty when the anchor has no href.',
+        'Absolute href of the primary anchor, resolved against url. Always non-empty for emitted items.',
       ),
   })
   .describe('One detected list item with its title, URL, snippet, and score.');

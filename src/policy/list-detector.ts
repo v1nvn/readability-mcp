@@ -191,9 +191,11 @@ function extractItem(
   // Snippet = body text with the title peeled off the front when present, so
   // the title link doesn't echo into the excerpt.
   const snippet =
-    fullText.startsWith(title) && fullText.length > title.length
-      ? clipSnippet(fullText.slice(title.length + 1))
-      : clipSnippet(fullText);
+    fullText === title
+      ? ''
+      : fullText.startsWith(title)
+        ? clipSnippet(fullText.slice(title.length + 1))
+        : clipSnippet(fullText);
 
   const linkTextLength = anchors.reduce(
     (sum, anchor) => sum + anchorText(anchor).length,
