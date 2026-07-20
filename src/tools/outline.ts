@@ -3,7 +3,7 @@ import type { ToolHandle } from '../server.js';
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
-import { normalizeDocument } from '../pipeline/normalize.js';
+import { applySelectors, normalizeDocument } from '../pipeline/normalize.js';
 import { resolveOutline } from '../policy/outline.js';
 import { outlineOutputShape } from './output-schema.js';
 import { outlineInputSchema, outlineInputShape } from './schemas.js';
@@ -25,10 +25,11 @@ function renderOutlineToc(
 
 export function outlineDocument(rawArgs: unknown): CallToolResult {
   const args = outlineInputSchema.parse(rawArgs);
-  const { html, url } = args;
+  const { html, url, selectors } = args;
 
   const { document } = buildDocument(html, url);
   normalizeDocument(document);
+  applySelectors(document, selectors);
   const outline = resolveOutline(document);
 
   const title =

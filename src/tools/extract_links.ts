@@ -3,6 +3,7 @@ import type { ToolHandle } from '../server.js';
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
+import { applySelectors } from '../pipeline/normalize.js';
 import { absolutize } from '../pipeline/urls.js';
 import { extractLinksOutputShape } from './output-schema.js';
 import { extractLinksInputSchema, extractLinksInputShape } from './schemas.js';
@@ -60,9 +61,10 @@ function pruneUnsafeRoots(document: Document): void {
 
 export function extractLinks(rawArgs: unknown): CallToolResult {
   const args = extractLinksInputSchema.parse(rawArgs);
-  const { html, url, sameOriginOnly } = args;
+  const { html, url, sameOriginOnly, selectors } = args;
 
   const { document } = buildDocument(html, url);
+  applySelectors(document, selectors);
   pruneUnsafeRoots(document);
 
   const links: ExtractedLink[] = [];

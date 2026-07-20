@@ -176,4 +176,33 @@ describe('extract_tables tool', () => {
     expect(parsed.metadata.format).toBe('gfm');
     expect(parsed.tables[0]!.markdown).toContain('| --- | --- | --- |');
   });
+
+  it('scopes the table walk to the selectors.include subtree', () => {
+    const html =
+      '<div id="a"><table><tr><th>A</th></tr><tr><td>Alpha</td></tr></table></div>' +
+      '<div id="b"><table><tr><th>B</th></tr><tr><td>Beta</td></tr></table></div>';
+    const result = extractTables({
+      html,
+      url: ORIGIN,
+      selectors: { include: '#a' },
+    });
+    const parsed = extractTablesOutput.parse(result.structuredContent);
+    expect(parsed.metadata.tableCount).toBe(1);
+    expect(parsed.tables[0]!.markdown).toContain('Alpha');
+    expect(parsed.tables[0]!.markdown).not.toContain('Beta');
+  });
+
+  it('drops tables matched by selectors.exclude anywhere on the page', () => {
+    const html =
+      '<div id="a"><table><tr><td>Alpha</td></tr></table></div>' +
+      '<aside class="ads"><table><tr><td>Ad</td></tr></table></aside>';
+    const result = extractTables({
+      html,
+      url: ORIGIN,
+      selectors: { exclude: ['.ads'] },
+    });
+    const parsed = extractTablesOutput.parse(result.structuredContent);
+    expect(parsed.metadata.tableCount).toBe(1);
+    expect(parsed.tables[0]!.markdown).toContain('Alpha');
+  });
 });

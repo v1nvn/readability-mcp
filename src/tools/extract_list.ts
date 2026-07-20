@@ -3,6 +3,7 @@ import type { ToolHandle } from '../server.js';
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
+import { applySelectors } from '../pipeline/normalize.js';
 import {
   detectList,
   type ListDetectionResult,
@@ -39,7 +40,7 @@ function toStructuredItem(item: ListItem) {
 
 export function extractList(rawArgs: unknown): CallToolResult {
   const args = extractListInputSchema.parse(rawArgs);
-  const { html, url } = args;
+  const { html, url, selectors } = args;
 
   // No Readability/Turndown/normalize: list pages survive on raw DOM shape
   // (sibling TR/LI/ARTICLE clusters), and the article normalizer would
@@ -47,6 +48,7 @@ export function extractList(rawArgs: unknown): CallToolResult {
   // Chrome stripping (nav/header/footer/aside) lives inside detectList so
   // this tool sees the page as captured.
   const { document } = buildDocument(html, url);
+  applySelectors(document, selectors);
   const result = detectList(document, url);
   const content = renderItems(result);
   return {

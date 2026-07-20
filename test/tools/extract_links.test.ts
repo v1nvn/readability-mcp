@@ -135,4 +135,36 @@ describe('extract_links tool', () => {
       'Footer',
     ]);
   });
+
+  it('selectors.include scopes the link walk to a subtree', () => {
+    const html =
+      '<nav id="nav"><a href="/n">Nav</a></nav>' +
+      '<div id="peers"><a href="/p1">P1</a><a href="/p2">P2</a></div>';
+    const result = extractLinks({
+      html,
+      url: ORIGIN,
+      selectors: { include: '#peers' },
+    });
+    const parsed = extractLinksOutput.parse(result.structuredContent);
+    expect(parsed.links.map(link => link.text)).toEqual(['P1', 'P2']);
+  });
+
+  it('selectors composes with sameOriginOnly (DOM scope + semantic filter)', () => {
+    const html =
+      '<div id="peers">' +
+      '<a href="/p1">P1</a>' +
+      '<a href="https://other.example/x">Ext</a>' +
+      '</div>' +
+      '<nav><a href="/n">Nav</a></nav>';
+    const result = extractLinks({
+      html,
+      url: ORIGIN,
+      sameOriginOnly: true,
+      selectors: { include: '#peers' },
+    });
+    const parsed = extractLinksOutput.parse(result.structuredContent);
+    expect(parsed.links.map(link => link.href)).toEqual([
+      'https://x.example/p1',
+    ]);
+  });
 });

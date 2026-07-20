@@ -121,13 +121,14 @@ Output shape is the same as `extract` (`content`, `metadata`, `diagnostics`). He
 
 ### `extract_tables` — every table on the page
 
-Extracts **every** `<table>` on the page — a page-wide `querySelectorAll('table')` walk in front of the same rowspan/colspan-aware matrix serializer used by the `tables` option on `extract`. Runs **no** Readability, Turndown, sanitization, or `normalizeDocument` chrome-stripping, so it captures tables outside the article body (nav, aside, footer, boilerplate) that the `tables` option on `extract` never sees — the motivating case is wiki/doc/data pages whose content is table-heavy but whose article boundary hides most of them.
+Extracts **every** `<table>` on the page — a `querySelectorAll('table')` walk (page-wide by default; narrow it with `selectors.include`) in front of the same rowspan/colspan-aware matrix serializer used by the `tables` option on `extract`. Runs **no** Readability, Turndown, sanitization, or `normalizeDocument` chrome-stripping, so it captures tables outside the article body (nav, aside, footer, boilerplate) that the `tables` option on `extract` never sees — the motivating case is wiki/doc/data pages whose content is table-heavy but whose article boundary hides most of them.
 
 | Option | Default | Description |
 | --- | --- | --- |
 | `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
 | `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
 | `format` | `gfm` | `gfm` (default, native GFM table with a delimiter row) \| `csv` (RFC-4180-ish, quoted fields) \| `json` (array of row objects keyed by the header row). |
+| `selectors` | — | Same `include`/`exclude` shape as `extract`. Scope the walk: `include:"#shareholding"` returns only tables inside that subtree; `exclude:[".ads"]` drops matches anywhere on the page. |
 
 Output shape: `structuredContent.tables = [{index, rows, cols, markdown}]` — one entry per non-empty table in document order, where `rows`/`cols` are the matrix dimensions after rowspan/colspan resolution and `markdown` is the table rendered in the requested format. All entries' `markdown` are joined by blank lines into `content[0].text` (`"(no tables found)"` when the page has none). `metadata = {url?, format, tableCount}`. Empty `<table>` elements (no rows) are skipped, so `index` is contiguous over the emitted tables. Nested `<table>`s are emitted as their own entries in document order (the matrix walk excludes nested tables from a parent's matrix; `querySelectorAll` then returns the nested table separately).
 
@@ -139,6 +140,7 @@ A **second engine** for pages Readability cannot turn into one article: HN-style
 | --- | --- | --- |
 | `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
 | `url` | — | Optional origin. **Never fetched**; used to absolutize item `href`s. |
+| `selectors` | — | Same `include`/`exclude` shape as `extract`. `include` picks which list the detector scores against — note the detector is comparative ("the cluster with the most items wins"), so pre-scoping to one container subverts that comparison; treat it as an "I know which list I want" escape hatch. |
 
 Output shape: `structuredContent = {schemaVersion, content, items, diagnostics, metadata}`. `items = [{title, url, snippet, score}]` in document order — `snippet` is the item's text teaser (empty when the cluster has no per-item text), `score` is the detector's internal ranking weight. `diagnostics = {detected, itemCount, containerSelector, itemTag, confidence, note}`: `detected:false` means no list structure was found (`itemCount:0`, empty `items`, and a `note` explaining why); `containerSelector`/`itemTag` name the winning cluster; `confidence` is a rough quality signal. `metadata = {url}`.
 
@@ -150,6 +152,7 @@ Returns the document outline (`h1`–`h6` in document order with stable anchor i
 | --- | --- | --- |
 | `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
 | `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+| `selectors` | — | Same `include`/`exclude` shape as `extract`. `include:"main"` scopes the heading walk to that subtree, dropping nav/footer headings from the outline. |
 
 Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an indented-bullet TOC rendered into `content[0].text`, and `metadata = {title?, url?}` (`title` falls back from `<title>` to the first `<h1>`). Anchor precedence: the heading's own `id`, then a descendant permalink's `#fragment`, then a slug of the text (deduped `-1`, `-2`, … for generated slugs only — author ids are kept verbatim).
 
@@ -162,6 +165,7 @@ Returns a structured list of anchor links — `[{text, href, rel, isExternal}]` 
 | `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
 | `url` | — | Optional origin. **Never fetched**; absolutizes relative `href`s and drives `isExternal`. |
 | `sameOriginOnly` | `false` | Drop cross-origin links; keep same-origin, relative, fragment, and non-http(s) (`mailto`/`tel`/`javascript`) links. |
+| `selectors` | — | Same `include`/`exclude` shape as `extract`. DOM-level scope (e.g. `include:"#peers"`) applied before the link walk; composes with `sameOriginOnly`'s semantic filter. |
 
 Output shape: `structuredContent.links = [{text, href, rel, isExternal}]` plus a `- [text](href)` rendering in `content[0].text`. `href` is absolutized against `url` (unchanged when `url` is absent or the pair fails to parse). `isExternal` is `true` only when `url` is provided **and** the absolutized `href` parses to a different HTTP(S) origin — relative, fragment, same-origin, `mailto:`/`tel:`/`javascript:`, and malformed hrefs are all `false`. `rel` is the raw attribute value (`"noopener noreferrer"`, `"nofollow"`, …) or `""` when absent. Anchors with no `href` are skipped; the rest are kept in document order with **no deduplication**.
 

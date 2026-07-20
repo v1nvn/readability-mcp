@@ -3,6 +3,7 @@ import type { ToolHandle } from '../server.js';
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
+import { applySelectors } from '../pipeline/normalize.js';
 import { parseTableMatrix, renderTable } from '../policy/tables.js';
 import { extractTablesOutputShape } from './output-schema.js';
 import {
@@ -24,13 +25,14 @@ const NO_TABLES = '(no tables found)';
 
 export function extractTables(rawArgs: unknown): CallToolResult {
   const args = extractTablesInputSchema.parse(rawArgs);
-  const { html, url, format } = args;
+  const { html, url, format, selectors } = args;
 
   // Skip normalizeDocument/Readability on purpose: this tool exists to reach
   // tables that live outside the scored article (nav, aside, boilerplate), which
   // those stages would discard. Table structure is static HTML, so the matrix
   // walk is unaffected by unsanitized scripts/styles.
   const { document } = buildDocument(html, url);
+  applySelectors(document, selectors);
 
   const tables: ExtractedTable[] = [];
   let index = 0;

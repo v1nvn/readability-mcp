@@ -235,6 +235,7 @@ export const outlineInputShape = {
       'Origin URL, carried through to metadata.url and used to absolutize links. NEVER fetched — origin context only.',
     )
     .optional(),
+  selectors: selectorsSchema,
 } as const;
 
 export const outlineInputSchema = z.object(outlineInputShape);
@@ -273,6 +274,7 @@ export const extractLinksInputShape = {
       'Drop cross-origin links; keep same-origin, relative, and fragment links.',
     )
     .default(false),
+  selectors: selectorsSchema,
 } as const;
 
 export const extractLinksInputSchema = z.object(extractLinksInputShape);
@@ -366,6 +368,7 @@ export const extractTablesInputShape = {
       'Output format for every table: "gfm" (default — native GFM table with a delimiter row), "csv" (RFC-4180-ish, quoted fields), or "json" (array of row objects keyed by the header row).',
     )
     .default('gfm'),
+  selectors: selectorsSchema,
 } as const;
 
 export const extractTablesInputSchema = z.object(extractTablesInputShape);
@@ -382,6 +385,7 @@ export const extractListInputShape = {
       'Origin URL for absolutizing item hrefs against. NEVER fetched — origin context only.',
     )
     .optional(),
+  selectors: selectorsSchema,
 } as const;
 
 export const extractListInputSchema = z.object(extractListInputShape);

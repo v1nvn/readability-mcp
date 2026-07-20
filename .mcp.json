@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "readability": {
+    "readability-dev": {
       "command": "yarn",
       "args": ["dev"]
     }
