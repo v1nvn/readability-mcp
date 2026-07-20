@@ -1,6 +1,6 @@
 import type { TraceStage } from '../../src/pipeline/context.js';
 import { buildDocument } from '../../src/pipeline/dom.js';
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 import type { StructuredContent } from '../../src/tools/output-schema.js';
 
 export interface PrecisionRecall {
@@ -77,7 +77,7 @@ export function scoreFixture(
     throw new Error(`main-content selector did not resolve: ${selector}`);
   }
   const labeledText = labeledElement.textContent ?? '';
-  const result = extractArticle({ debug: true, format: 'text', html, url });
+  const result = extractArticleFromHtml({ debug: true, format: 'text', html, baseUrl: url });
   const first = result.content[0];
   const extractedText = first && 'text' in first ? first.text : '';
   const trace =

@@ -62,7 +62,7 @@ const METADATA_KEYS = [
   'publishedTime',
   'excerpt',
   'canonical',
-  'url',
+  'baseUrl',
   'wordCount',
   'readingTimeMin',
   'tokenEstimate',

@@ -6,7 +6,7 @@ describe('turndown image modes', () => {
   const html = '<p>before</p><img src="/a.png" alt="diagram"><p>after</p>';
 
   it('keep: renders inline image markdown', () => {
-    const md = toMarkdown(html, { images: 'keep', url: pageUrl });
+    const md = toMarkdown(html, { images: 'keep', baseUrl: pageUrl });
     expect(md).toContain('![diagram](https://example.com/a.png)');
   });
 
@@ -17,14 +17,14 @@ describe('turndown image modes', () => {
   });
 
   it('src-only: emits the bare URL (alt dropped) on its own line', () => {
-    const md = toMarkdown(html, { images: 'src-only', url: pageUrl });
+    const md = toMarkdown(html, { images: 'src-only', baseUrl: pageUrl });
     expect(md).not.toContain('![diagram]');
     expect(md).toContain('https://example.com/a.png');
   });
 
   it('reference: emits ![alt][img-N] with a link-ref block appended', () => {
     const two = '<img src="/x.png" alt="one"><img src="/y.png" alt="two">';
-    const md = toMarkdown(two, { images: 'reference', url: pageUrl });
+    const md = toMarkdown(two, { images: 'reference', baseUrl: pageUrl });
     expect(md).toContain('![one][img-1]');
     expect(md).toContain('![two][img-2]');
     expect(md).toMatch(/\[img-1\]: https:\/\/example\.com\/x\.png/);
@@ -34,14 +34,14 @@ describe('turndown image modes', () => {
 
 describe('anchor absolutization', () => {
   it('absolutizes a relative href against url', () => {
-    const md = toMarkdown('<a href="/rel">text</a>', { url: pageUrl });
+    const md = toMarkdown('<a href="/rel">text</a>', { baseUrl: pageUrl });
     expect(md).toContain('[text](https://example.com/rel)');
   });
 
   it('absolutizes both a relative anchor and an image together', () => {
     const md = toMarkdown(
       '<a href="/rel">text</a> and <img src="/a.png" alt="d">',
-      { images: 'keep', url: pageUrl },
+      { images: 'keep', baseUrl: pageUrl },
     );
     expect(md).toContain('[text](https://example.com/rel)');
     expect(md).toContain('![d](https://example.com/a.png)');
@@ -49,13 +49,13 @@ describe('anchor absolutization', () => {
 
   it('leaves an already-absolute href unchanged', () => {
     const md = toMarkdown('<a href="https://other.test/abs">abs</a>', {
-      url: pageUrl,
+      baseUrl: pageUrl,
     });
     expect(md).toContain('[abs](https://other.test/abs)');
   });
 
   it('preserves the title attribute', () => {
-    const md = toMarkdown('<a href="/x" title="t">text</a>', { url: pageUrl });
+    const md = toMarkdown('<a href="/x" title="t">text</a>', { baseUrl: pageUrl });
     expect(md).toContain('[text](https://example.com/x "t")');
   });
 
@@ -67,13 +67,13 @@ describe('anchor absolutization', () => {
   it('still renders an image (with absolute src) when the anchor wraps it', () => {
     const md = toMarkdown('<a href="/lnk"><img src="/a.png" alt="d"></a>', {
       images: 'keep',
-      url: pageUrl,
+      baseUrl: pageUrl,
     });
     expect(md).toContain('[![d](https://example.com/a.png)](https://example.com/lnk)');
   });
 
   it('returns bare content when href is empty (matches turndown default)', () => {
-    const md = toMarkdown('<a href="">empty</a>', { url: pageUrl });
+    const md = toMarkdown('<a href="">empty</a>', { baseUrl: pageUrl });
     expect(md.trim()).toBe('empty');
   });
 });
@@ -129,7 +129,7 @@ describe('footnote collection', () => {
     const html =
       '<p>Claim one<sup><a href="#fn-1">1</a></sup> and claim two<sup><a href="#fn-2">2</a></sup>.</p>' +
       '<ol class="footnotes"><li id="fn-1">First note</li><li id="fn-2">Second note</li></ol>';
-    const md = toMarkdown(html, { url: pageUrl });
+    const md = toMarkdown(html, { baseUrl: pageUrl });
     expect(md).toContain('Claim one[^1]');
     expect(md).toContain('claim two[^2]');
     expect(md).toMatch(/\[\^1\]: First note/);
@@ -142,7 +142,7 @@ describe('footnote collection', () => {
   it('produces no footnote markers when the input has no footnote markup (default unchanged)', () => {
     const md = toMarkdown(
       '<p>Plain paragraph with a <sup>2</sup> superscript.</p>',
-      { url: pageUrl },
+      { baseUrl: pageUrl },
     );
     expect(md).not.toContain('[^');
     expect(md).toContain('Plain paragraph');

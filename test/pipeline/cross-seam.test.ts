@@ -8,7 +8,7 @@ import { isReaderable, parseArticle } from '../../src/pipeline/readability.js';
 import { sanitizeHtml } from '../../src/pipeline/sanitize.js';
 import { toMarkdown } from '../../src/pipeline/turndown.js';
 import { resolveReadabilityOptions } from '../../src/policy/resolver.js';
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 import type { StructuredContent } from '../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,7 +19,7 @@ function loadFixture(): string {
   return readFileSync(fixturePath, 'utf8');
 }
 
-function payloadText(result: ReturnType<typeof extractArticle>): string {
+function payloadText(result: ReturnType<typeof extractArticleFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -27,7 +27,7 @@ function payloadText(result: ReturnType<typeof extractArticle>): string {
 describe('cross-seam: SPA end-to-end', () => {
   it('preserves content, absolutizes the relative image, keeps the table and code block', () => {
     const html = loadFixture();
-    const result = extractArticle({ html, url: pageUrl, format: 'markdown', gfm: true });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl, format: 'markdown', gfm: true });
 
     expect(result.isError).toBeFalsy();
     const text = payloadText(result);
@@ -102,7 +102,7 @@ describe('turndown.toMarkdown', () => {
       '<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>' +
       '<pre><code class="language-ts">const x = 1;</code></pre>' +
       '<img src="/i.png" alt="diagram">';
-    const md = toMarkdown(html, { gfm: true, url: pageUrl });
+    const md = toMarkdown(html, { gfm: true, baseUrl: pageUrl });
     expect(md).toMatch(/\|\s+A\s+\|/);
     expect(md).toMatch(/```ts\n/);
     expect(md).toContain('![diagram]');

@@ -9,8 +9,13 @@ import {
   type ListDetectionResult,
   type ListItem,
 } from '../policy/list-detector.js';
+import { readHtmlFile } from './html-source.js';
 import { extractListOutputShape } from './output-schema.js';
-import { extractListInputSchema, extractListInputShape } from './schemas.js';
+import {
+  type ExtractListFromHtmlInput,
+  extractListInputSchema,
+  extractListInputShape,
+} from './schemas.js';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -39,17 +44,23 @@ function toStructuredItem(item: ListItem) {
 }
 
 export function extractList(rawArgs: unknown): CallToolResult {
-  const args = extractListInputSchema.parse(rawArgs);
-  const { html, url, selectors } = args;
+  const { localPath, ...rest } = extractListInputSchema.parse(rawArgs);
+  return extractListFromHtml({ html: readHtmlFile(localPath), ...rest });
+}
+
+export function extractListFromHtml(
+  input: Readonly<ExtractListFromHtmlInput>,
+): CallToolResult {
+  const { html, baseUrl, selectors } = input;
 
   // No Readability/Turndown/normalize: list pages survive on raw DOM shape
   // (sibling TR/LI/ARTICLE clusters), and the article normalizer would
   // discard the very chrome-bearing structure the detector scores against.
   // Chrome stripping (nav/header/footer/aside) lives inside detectList so
   // this tool sees the page as captured.
-  const { document } = buildDocument(html, url);
+  const { document } = buildDocument(html, baseUrl);
   applySelectors(document, selectors);
-  const result = detectList(document, url);
+  const result = detectList(document, baseUrl);
   const content = renderItems(result);
   return {
     content: [{ text: content, type: 'text' }],
@@ -65,12 +76,12 @@ export function extractList(rawArgs: unknown): CallToolResult {
         itemTag: result.itemTag,
         note: result.note,
       },
-      metadata: { url },
+      metadata: { baseUrl },
     },
   };
 }
 
-export const EXTRACT_LIST_TOOL_DESCRIPTION = `Detect and extract a list/feed/index structure from already-rendered (post-JavaScript) HTML — for HN-style, search-result, and blog-index pages that Readability cannot turn into one article. Returns \`{items: [{title, url, snippet, score}], diagnostics}\` instead of one article. Strips nav/header/footer/aside + ARIA chrome roles first (the false-positive guard so an article's nav menu doesn't look like a 4-item feed), then finds the container whose direct children form a same-shape sibling cluster of ≥3 elements each carrying a navigation anchor, and the cluster with the most items wins. No Readability, no Turndown, no sanitization. The server fetches nothing: \`html\` is the only source, and \`url\` (optional) is origin context for absolutizing item hrefs.`;
+export const EXTRACT_LIST_TOOL_DESCRIPTION = `Detect and extract a list/feed/index structure from already-rendered (post-JavaScript) HTML — for HN-style, search-result, and blog-index pages that Readability cannot turn into one article. Returns \`{items: [{title, url, snippet, score}], diagnostics}\` instead of one article. Strips nav/header/footer/aside + ARIA chrome roles first (the false-positive guard so an article's nav menu doesn't look like a 4-item feed), then finds the container whose direct children form a same-shape sibling cluster of ≥3 elements each carrying a navigation anchor, and the cluster with the most items wins. No Readability, no Turndown, no sanitization. The server fetches nothing: \`localPath\` is the only source, and \`baseUrl\` (optional) is origin context for absolutizing item hrefs.`;
 
 export function extractListHandler(args: unknown): CallToolResult {
   try {

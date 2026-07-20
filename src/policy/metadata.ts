@@ -220,11 +220,11 @@ function field(
 }
 
 export interface MetadataInput {
+  readonly baseUrl?: string;
   readonly document: Document;
   readonly readability?: null | ReadabilityParseResult;
   readonly readingTimeMin: number;
   readonly textContent: string;
-  readonly url?: string;
   readonly wordCount: number;
 }
 
@@ -286,7 +286,7 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
   );
 
   // canonical/og:url are absolute by spec; returned raw so callers can tell
-  // the declared canonical apart from the input url (origin context only).
+  // the declared canonical apart from the input baseUrl (origin context only).
   const canonical = first(
     nonEmpty(
       document.querySelector('link[rel="canonical"]')?.getAttribute('href') ??
@@ -303,7 +303,7 @@ export function resolveMetadata(input: Readonly<MetadataInput>): Metadata {
     publishedTime,
     excerpt,
     canonical,
-    url: input.url,
+    baseUrl: input.baseUrl,
     wordCount: input.wordCount,
     readingTimeMin: input.readingTimeMin,
     ...estimateTokens(input.textContent),

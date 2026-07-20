@@ -5,13 +5,13 @@ import { sanitizeHtml } from '../pipeline/sanitize.js';
 import { toMarkdown } from '../pipeline/turndown.js';
 
 export interface FallbackOptions {
+  readonly baseUrl?: string;
   readonly codeBlockStyle?: 'fenced' | 'indented';
   readonly gfm?: boolean;
   readonly headingStyle?: 'atx' | 'setext';
   readonly images?: ImageMode;
   readonly sanitize: boolean;
   readonly tables?: TableFormat;
-  readonly url?: string;
   readonly window: Window;
 }
 
@@ -51,7 +51,7 @@ function convert(
     headingStyle: options.headingStyle,
     images: options.images,
     tables: options.tables,
-    url: options.url,
+    baseUrl: options.baseUrl,
   });
   const textContent = element.textContent;
   if (markdown.trim().length === 0) {

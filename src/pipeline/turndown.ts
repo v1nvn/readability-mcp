@@ -13,12 +13,12 @@ export type ImageMode = 'drop' | 'keep' | 'reference' | 'src-only';
 export type { TableFormat };
 
 export interface TurndownOptions {
+  readonly baseUrl?: string;
   readonly codeBlockStyle?: CodeBlockStyle;
   readonly gfm?: boolean;
   readonly headingStyle?: HeadingStyle;
   readonly images?: ImageMode;
   readonly tables?: TableFormat;
-  readonly url?: string;
 }
 
 export function toMarkdown(
@@ -66,7 +66,7 @@ export function toMarkdown(
   }
 
   const imageMode = options?.images;
-  const baseUrl = options?.url;
+  const baseUrl = options?.baseUrl;
   // `reference` mode collects definitions as images render; append them after the pass.
   const references: string[] = [];
   applyImagePolicy(service, imageMode, baseUrl, references);

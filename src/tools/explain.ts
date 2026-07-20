@@ -6,7 +6,12 @@ import type { ToolHandle } from '../server.js';
 import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildExplainReport } from '../policy/explain.js';
-import { selectorsSchema } from './schemas.js';
+import { readHtmlFile } from './html-source.js';
+import {
+  type FromHtmlInput,
+  localPathField,
+  selectorsSchema,
+} from './schemas.js';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -16,15 +21,11 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 // shared with other tools). `selectorsSchema` is reused verbatim from extract so
 // the two tools agree on the include/exclude contract.
 const explainInputShape = {
-  html: z
-    .string()
-    .describe(
-      "Already-rendered HTML (post-JavaScript) to diagnose. Routed through the same normalize + Readability pipeline as `extract`, with Readability's real per-candidate scores surfaced. This is the ONLY input the server reads; it makes no outbound requests.",
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL for absolutizing relative links during pagination/gating detection. NEVER fetched — origin context only.',
+      'Base URL for absolutizing relative links during pagination/gating detection. NEVER fetched — origin context only.',
     )
     .optional(),
   selectors: selectorsSchema,
@@ -40,6 +41,14 @@ const explainInputShape = {
 } as const;
 
 const explainInputSchema = z.object(explainInputShape);
+
+type ExplainInput = z.infer<typeof explainInputSchema>;
+type ExplainFromHtmlInput = FromHtmlInput<ExplainInput>;
+
+// Schema defaults for callers that pass only a subset of the knobs (topN).
+const DEFAULTS: Omit<ExplainInput, 'localPath'> = explainInputSchema.parse({
+  localPath: '',
+});
 
 const candidateSchema = z
   .object({
@@ -243,12 +252,19 @@ function renderText(report: ExplainReport): string {
 }
 
 export function explain(rawArgs: unknown): CallToolResult {
-  const args = explainInputSchema.parse(rawArgs);
+  const { localPath, ...rest } = explainInputSchema.parse(rawArgs);
+  return explainFromHtml({ html: readHtmlFile(localPath), ...rest });
+}
+
+export function explainFromHtml(
+  input: Readonly<ExplainFromHtmlInput>,
+): CallToolResult {
+  const { html, baseUrl, selectors, topN } = { ...DEFAULTS, ...input };
   const report = buildExplainReport({
-    html: args.html,
-    selectors: args.selectors,
-    topN: args.topN,
-    url: args.url,
+    html,
+    selectors,
+    topN,
+    baseUrl,
   });
   const content = renderText(report);
   return {
@@ -269,7 +285,7 @@ export function explain(rawArgs: unknown): CallToolResult {
   };
 }
 
-export const EXPLAIN_TOOL_DESCRIPTION = `Post-mortem diagnostics for extraction: shows WHY Readability picked what it picked. Returns the chosen root, the ranked candidate nodes with their REAL Readability contentScore values (read off the DOM expando Readability stamps during scoring), a categorized removed-nodes breakdown, gating/pagination signals, and a snapshot of the normalized HTML fed to Readability. Runs the same normalize + Readability pipeline as \`extract\` (no fallback cascade, no Turndown). The server fetches nothing: \`html\` is the only source, and \`url\` (optional) is origin context only.`;
+export const EXPLAIN_TOOL_DESCRIPTION = `Post-mortem diagnostics for extraction: shows WHY Readability picked what it picked. Returns the chosen root, the ranked candidate nodes with their REAL Readability contentScore values (read off the DOM expando Readability stamps during scoring), a categorized removed-nodes breakdown, gating/pagination signals, and a snapshot of the normalized HTML fed to Readability. Runs the same normalize + Readability pipeline as \`extract\` (no fallback cascade, no Turndown). The server fetches nothing: \`localPath\` is the only source, and \`baseUrl\` (optional) is origin context only.`;
 
 export function explainHandler(args: unknown): CallToolResult {
   try {

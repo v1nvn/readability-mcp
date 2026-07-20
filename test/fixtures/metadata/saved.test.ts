@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractMetadataDocument } from '../../../src/tools/extract_metadata.js';
+import { extractMetadataDocumentFromHtml } from '../../../src/tools/extract_metadata.js';
 import type { ExtractMetadataStructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,7 +12,7 @@ const fixturePath = join(here, 'saved.html');
 const pageUrl = 'https://example.com/some-other-path';
 
 function payloadText(
-  result: ReturnType<typeof extractMetadataDocument>,
+  result: ReturnType<typeof extractMetadataDocumentFromHtml>,
 ): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
@@ -21,7 +21,7 @@ function payloadText(
 describe('golden: metadata saved.html', () => {
   it('resolves the full metadata cascade and canonical (no markdown body)', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractMetadataDocument({ html, url: pageUrl });
+    const result = extractMetadataDocumentFromHtml({ html, baseUrl: pageUrl });
 
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as ExtractMetadataStructuredContent;
@@ -38,7 +38,7 @@ describe('golden: metadata saved.html', () => {
     expect(metadata.canonical).toBe(
       'https://docs.example.com/api-design/resilient',
     );
-    expect(metadata.url).toBe(pageUrl);
+    expect(metadata.baseUrl).toBe(pageUrl);
 
     // Bibliographic only — these are meaningless without the extracted body.
     expect(metadata).not.toHaveProperty('wordCount');

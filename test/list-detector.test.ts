@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { detectList } from '../src/policy/list-detector.js';
 import { buildDocument } from '../src/pipeline/dom.js';
-import { extractList } from '../src/tools/extract_list.js';
+import { extractListFromHtml } from '../src/tools/extract_list.js';
 import type { ExtractListStructuredContent } from '../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -93,7 +93,7 @@ describe('detectList: no false positives on article fixtures', () => {
 describe('extract_list tool', () => {
   it('returns the detected items and diagnostics via structuredContent', () => {
     const html = readFixtureHtml('search');
-    const result = extractList({ html, url: 'https://example.com/' });
+    const result = extractListFromHtml({ html, baseUrl: 'https://example.com/' });
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as ExtractListStructuredContent;
     expect(structured.schemaVersion).toBe(1);
@@ -105,7 +105,7 @@ describe('extract_list tool', () => {
 
   it('returns a not-a-list result for an article page', () => {
     const html = readFixtureHtml('documentation');
-    const result = extractList({ html, url: 'https://example.com/' });
+    const result = extractListFromHtml({ html, baseUrl: 'https://example.com/' });
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as ExtractListStructuredContent;
     expect(structured.diagnostics.detected).toBe(false);

@@ -1,6 +1,6 @@
 import { buildDocument } from '../../src/pipeline/dom.js';
 import { scopeToHeading } from '../../src/policy/section.js';
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 
 const ORIGIN = 'https://example.com/docs';
 
@@ -118,14 +118,14 @@ describe('policy.section scopeToHeading', () => {
     const headingDoc = doc(WRAPPED_FIXTURE_HTML);
     expect(scopeToHeading(headingDoc, 'Authentication')).toBe(true);
     const scoped = `<!DOCTYPE html><html><head></head><body>${headingDoc.body.innerHTML}</body></html>`;
-    const headingResult = extractArticle({
+    const headingResult = extractArticleFromHtml({
       html: scoped,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selectors: { include: '[data-rdrm-section-scope]' },
     });
-    const selectorResult = extractArticle({
+    const selectorResult = extractArticleFromHtml({
       html: WRAPPED_FIXTURE_HTML,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selectors: { include: '#auth' },
     });
     const headingMarkdown = String(

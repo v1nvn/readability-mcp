@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturesRoot = resolve(here, '../fixtures');
@@ -31,7 +31,7 @@ function fixtureUrl(fixtureDir: string): string {
   return `https://example.com/${fixtureDir.slice(fixturesRoot.length + 1)}/`;
 }
 
-function payloadText(result: ReturnType<typeof extractArticle>): string {
+function payloadText(result: ReturnType<typeof extractArticleFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -60,7 +60,7 @@ export function snapshotFixtures(outDir: string): SnapshotResult {
     const html = readFileSync(join(fixtureDir, 'saved.html'), 'utf8');
     const url = fixtureUrl(fixtureDir);
     const markdown = payloadText(
-      extractArticle({ html, url, format: 'markdown' }),
+      extractArticleFromHtml({ html, baseUrl: url, format: 'markdown' }),
     );
     writeFileSync(join(outDir, `${name}.md`), markdown);
   }

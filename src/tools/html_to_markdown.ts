@@ -15,8 +15,11 @@ import { toMarkdown } from '../pipeline/turndown.js';
 import { assembleDiagnostics, TraceCollector } from '../policy/diagnostics.js';
 import { computeTextMetrics, nonEmpty } from '../policy/text.js';
 import { truncateMarkdown } from '../policy/truncate.js';
+import { readHtmlFile } from './html-source.js';
 import { outputSchemaShape } from './output-schema.js';
 import {
+  type HtmlToMarkdownFromHtmlInput,
+  type HtmlToMarkdownInput,
   htmlToMarkdownInputSchema,
   htmlToMarkdownInputShape,
 } from './schemas.js';
@@ -27,10 +30,20 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 const EXTRACTED_NODE = 'fragment';
 
 export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
-  const args = htmlToMarkdownInputSchema.parse(rawArgs);
+  const { localPath, ...rest } = htmlToMarkdownInputSchema.parse(rawArgs);
+  return htmlToMarkdownFromHtml({ html: readHtmlFile(localPath), ...rest });
+}
+
+// Schema defaults for callers that pass only a subset of the knobs.
+const DEFAULTS: Omit<HtmlToMarkdownInput, 'localPath'> =
+  htmlToMarkdownInputSchema.parse({ localPath: '' });
+
+export function htmlToMarkdownFromHtml(
+  input: Readonly<HtmlToMarkdownFromHtmlInput>,
+): CallToolResult {
   const {
     html,
-    url,
+    baseUrl,
     selectors,
     format,
     metadataMode,
@@ -44,11 +57,11 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     cleanChrome,
     tables,
     debug,
-  } = args;
+  } = { ...DEFAULTS, ...input };
 
   const trace = new TraceCollector(debug);
 
-  const { document, window } = buildDocument(html, url);
+  const { document, window } = buildDocument(html, baseUrl);
 
   const {
     documentElementCount,
@@ -91,7 +104,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
       headingStyle,
       images,
       tables,
-      url,
+      baseUrl,
     }),
   );
 
@@ -101,7 +114,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
     );
     const metadata = {
       title: firstHeading,
-      url,
+      baseUrl,
       ...computeTextMetrics(textContent, wordsPerMinute),
     };
     return { metadata };
@@ -156,7 +169,7 @@ export function htmlToMarkdown(rawArgs: unknown): CallToolResult {
   };
 }
 
-export const HTML_TO_MARKDOWN_TOOL_DESCRIPTION = `Convert an arbitrary HTML fragment to Markdown WITHOUT Readability article extraction (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path as \`extract\`. The server fetches nothing: \`html\` is the only source, and \`url\` (optional) absolutizes relative links.`;
+export const HTML_TO_MARKDOWN_TOOL_DESCRIPTION = `Convert an arbitrary HTML fragment to Markdown WITHOUT Readability article extraction (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path as \`extract\`. The server fetches nothing: \`localPath\` is the only source, and \`baseUrl\` (optional) absolutizes relative links.`;
 
 export function htmlToMarkdownHandler(args: unknown): CallToolResult {
   try {

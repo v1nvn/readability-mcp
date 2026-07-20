@@ -5,8 +5,11 @@ import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
 import { applySelectors } from '../pipeline/normalize.js';
 import { parseTableMatrix, renderTable } from '../policy/tables.js';
+import { readHtmlFile } from './html-source.js';
 import { extractTablesOutputShape } from './output-schema.js';
 import {
+  type ExtractTablesFromHtmlInput,
+  type ExtractTablesInput,
   extractTablesInputSchema,
   extractTablesInputShape,
 } from './schemas.js';
@@ -24,14 +27,24 @@ interface ExtractedTable {
 const NO_TABLES = '(no tables found)';
 
 export function extractTables(rawArgs: unknown): CallToolResult {
-  const args = extractTablesInputSchema.parse(rawArgs);
-  const { html, url, format, selectors } = args;
+  const { localPath, ...rest } = extractTablesInputSchema.parse(rawArgs);
+  return extractTablesFromHtml({ html: readHtmlFile(localPath), ...rest });
+}
+
+// Schema defaults for callers that pass only a subset of the knobs (format).
+const DEFAULTS: Omit<ExtractTablesInput, 'localPath'> =
+  extractTablesInputSchema.parse({ localPath: '' });
+
+export function extractTablesFromHtml(
+  input: Readonly<ExtractTablesFromHtmlInput>,
+): CallToolResult {
+  const { html, baseUrl, format, selectors } = { ...DEFAULTS, ...input };
 
   // Skip normalizeDocument/Readability on purpose: this tool exists to reach
   // tables that live outside the scored article (nav, aside, boilerplate), which
   // those stages would discard. Table structure is static HTML, so the matrix
   // walk is unaffected by unsanitized scripts/styles.
-  const { document } = buildDocument(html, url);
+  const { document } = buildDocument(html, baseUrl);
   applySelectors(document, selectors);
 
   const tables: ExtractedTable[] = [];
@@ -61,12 +74,12 @@ export function extractTables(rawArgs: unknown): CallToolResult {
       schemaVersion: 1,
       content,
       tables,
-      metadata: { url, format, tableCount: tables.length },
+      metadata: { baseUrl, format, tableCount: tables.length },
     },
   };
 }
 
-export const EXTRACT_TABLES_TOOL_DESCRIPTION = `Extract every <table> on the page from already-rendered (post-JavaScript) HTML and return each as GFM / CSV / JSON (caller picks). Runs no Readability, Turndown, or sanitization — a page-wide \`querySelectorAll('table')\` walk in front of the same rowspan/colspan-aware matrix serializer used by the \`tables\` option on \`extract\`. Captures tables outside the article body (nav, aside, boilerplate) that the \`tables\` option never sees. The server fetches nothing: \`html\` is the only source, and \`url\` (optional) is origin context only (never fetched).`;
+export const EXTRACT_TABLES_TOOL_DESCRIPTION = `Extract every <table> on the page from already-rendered (post-JavaScript) HTML and return each as GFM / CSV / JSON (caller picks). Runs no Readability, Turndown, or sanitization — a page-wide \`querySelectorAll('table')\` walk in front of the same rowspan/colspan-aware matrix serializer used by the \`tables\` option on \`extract\`. Captures tables outside the article body (nav, aside, boilerplate) that the \`tables\` option never sees. The server fetches nothing: \`localPath\` is the only source, and \`baseUrl\` (optional) is origin context only (never fetched).`;
 
 export function extractTablesHandler(args: unknown): CallToolResult {
   try {

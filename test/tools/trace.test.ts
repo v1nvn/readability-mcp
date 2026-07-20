@@ -1,5 +1,5 @@
-import { extractArticle } from '../../src/tools/extract.js';
-import { htmlToMarkdown } from '../../src/tools/html_to_markdown.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
+import { htmlToMarkdownFromHtml } from '../../src/tools/html_to_markdown.js';
 import type { StructuredContent } from '../../src/tools/output-schema.js';
 import { outputSchema } from '../../src/tools/output-schema.js';
 
@@ -13,7 +13,9 @@ const FRAGMENT_HTML =
 type Trace = StructuredContent['diagnostics']['trace'];
 
 function diagnosticsOf(
-  result: ReturnType<typeof extractArticle> | ReturnType<typeof htmlToMarkdown>,
+  result:
+    | ReturnType<typeof extractArticleFromHtml>
+    | ReturnType<typeof htmlToMarkdownFromHtml>,
 ): StructuredContent['diagnostics'] {
   const parsed = outputSchema.parse(result.structuredContent);
   return parsed.diagnostics;
@@ -21,10 +23,10 @@ function diagnosticsOf(
 
 describe('extract: diagnostics.trace', () => {
   it('emits per-stage timings when debug:true', () => {
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       debug: true,
       html: ARTICLE_HTML,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     expect(result.isError).toBeFalsy();
     const { trace } = diagnosticsOf(result);
@@ -48,19 +50,19 @@ describe('extract: diagnostics.trace', () => {
   });
 
   it('leaves trace absent when debug is omitted', () => {
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       html: ARTICLE_HTML,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const { trace } = diagnosticsOf(result);
     expect(trace).toBeUndefined();
   });
 
   it('leaves trace absent when debug:false', () => {
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       debug: false,
       html: ARTICLE_HTML,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const { trace } = diagnosticsOf(result);
     expect(trace).toBeUndefined();
@@ -69,10 +71,10 @@ describe('extract: diagnostics.trace', () => {
 
 describe('html_to_markdown: diagnostics.trace', () => {
   it('emits per-stage timings when debug:true', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       debug: true,
       html: FRAGMENT_HTML,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     expect(result.isError).toBeFalsy();
     const { trace } = diagnosticsOf(result);
@@ -93,9 +95,9 @@ describe('html_to_markdown: diagnostics.trace', () => {
   });
 
   it('leaves trace absent when debug is omitted', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html: FRAGMENT_HTML,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const { trace } = diagnosticsOf(result);
     expect(trace).toBeUndefined();

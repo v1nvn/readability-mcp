@@ -1,6 +1,6 @@
 import { truncateMarkdown } from '../../src/policy/truncate.js';
 
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 
 function fenceCount(text: string): number {
   return (text.match(/^ {0,3}`{3,}/gm) ?? []).length;
@@ -98,9 +98,9 @@ describe('extract truncation contract', () => {
       '<pre><code class="language-ts">const one = 1;\nconst two = 2;\nconst three = 3;\nconst four = 4;</code></pre>' +
       '<p>A trailing paragraph that will not survive the budget.</p>' +
       '</article></body></html>';
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       html,
-      url: 'https://example.com/code',
+      baseUrl: 'https://example.com/code',
       format: 'markdown',
       maxChars: 80,
     });

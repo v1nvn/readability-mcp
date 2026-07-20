@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { buildDocument } from '../../../src/pipeline/dom.js';
 import { stripChrome } from '../../../src/pipeline/normalize.js';
-import { extractArticle } from '../../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../../src/tools/extract.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -14,7 +14,7 @@ const pageUrl = 'https://example.com/feature/urban-cycling';
 describe('paywall detection: soft-paywalled article', () => {
   it('flags diagnostics.gated with a likely signal and a non-empty reason', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl, format: 'markdown' });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl, format: 'markdown' });
 
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as StructuredContent;
@@ -27,7 +27,7 @@ describe('paywall detection: soft-paywalled article', () => {
 
   it('still extracts the article body — the overlay is a signal, not a blocker', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl, format: 'markdown' });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl, format: 'markdown' });
 
     const structured = result.structuredContent as StructuredContent;
     expect(structured.diagnostics.readerable).toBe(true);

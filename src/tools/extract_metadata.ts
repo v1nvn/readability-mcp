@@ -6,8 +6,10 @@ import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
 import { normalizeDocument } from '../pipeline/normalize.js';
 import { resolveMetadata } from '../policy/metadata.js';
+import { readHtmlFile } from './html-source.js';
 import { extractMetadataOutputShape } from './output-schema.js';
 import {
+  type ExtractMetadataFromHtmlInput,
   extractMetadataInputSchema,
   extractMetadataInputShape,
 } from './schemas.js';
@@ -26,7 +28,7 @@ const BIBLIOGRAPHIC_KEYS = [
   'publishedTime',
   'excerpt',
   'canonical',
-  'url',
+  'baseUrl',
 ] as const satisfies readonly (keyof Metadata)[];
 
 function pickBibliographic(
@@ -53,17 +55,26 @@ function renderMetadataLines(
 }
 
 export function extractMetadataDocument(rawArgs: unknown): CallToolResult {
-  const args = extractMetadataInputSchema.parse(rawArgs);
-  const { html, url } = args;
+  const { localPath, ...rest } = extractMetadataInputSchema.parse(rawArgs);
+  return extractMetadataDocumentFromHtml({
+    html: readHtmlFile(localPath),
+    ...rest,
+  });
+}
 
-  const { document } = buildDocument(html, url);
+export function extractMetadataDocumentFromHtml(
+  input: Readonly<ExtractMetadataFromHtmlInput>,
+): CallToolResult {
+  const { html, baseUrl } = input;
+
+  const { document } = buildDocument(html, baseUrl);
   normalizeDocument(document);
   const resolved = resolveMetadata({
     document,
     textContent: '',
     wordCount: 0,
     readingTimeMin: 0,
-    url,
+    baseUrl,
   });
 
   const metadata = pickBibliographic(resolved);
@@ -78,7 +89,7 @@ export function extractMetadataDocument(rawArgs: unknown): CallToolResult {
   };
 }
 
-export const EXTRACT_METADATA_TOOL_DESCRIPTION = `Return only the bibliographic metadata (title, byline, siteName, lang, publishedTime, excerpt, canonical, url) of already-rendered (post-JavaScript) HTML without running Readability/Turndown — a fast pre-check for crawlers and citation. Resolves the same metadata cascade as \`extract\` (JSON-LD → OpenGraph → Twitter → <meta> → <time> → <title>), plus <link rel="canonical"> → og:url. The server fetches nothing: \`html\` is the only source, and \`url\` is origin context only (never fetched).`;
+export const EXTRACT_METADATA_TOOL_DESCRIPTION = `Return only the bibliographic metadata (title, byline, siteName, lang, publishedTime, excerpt, canonical, baseUrl) of already-rendered (post-JavaScript) HTML without running Readability/Turndown — a fast pre-check for crawlers and citation. Resolves the same metadata cascade as \`extract\` (JSON-LD → OpenGraph → Twitter → <meta> → <time> → <title>), plus <link rel="canonical"> → og:url. The server fetches nothing: \`localPath\` is the only source, and \`baseUrl\` is origin context only (never fetched).`;
 
 export function extractMetadataHandler(args: unknown): CallToolResult {
   try {

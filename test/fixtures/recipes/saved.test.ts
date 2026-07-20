@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractArticle } from '../../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../../src/tools/extract.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,7 +12,7 @@ const pageUrl = 'https://kitchen.example.com/recipes/choc-chip-cookies';
 describe('recipe fixture: JSON-LD Recipe surfaces as metadata.structured', () => {
   it('populates structured with the Recipe node and preserves data fields', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl });
 
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as StructuredContent;
@@ -42,7 +42,7 @@ describe('recipe fixture: JSON-LD Recipe surfaces as metadata.structured', () =>
 
   it('emits the recipe prose as the article body, not the JSON-LD block', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl });
     const first = result.content[0];
     const text = first && 'text' in first ? first.text : '';
     expect(text).toContain('Classic Chocolate Chip Cookies');

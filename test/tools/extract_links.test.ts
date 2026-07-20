@@ -1,5 +1,5 @@
 import {
-  extractLinks,
+  extractLinksFromHtml,
   extractLinksHandler,
 } from '../../src/tools/extract_links.js';
 import { extractLinksOutput } from '../../src/tools/output-schema.js';
@@ -8,9 +8,9 @@ const ORIGIN = 'https://x.example/';
 
 describe('extract_links tool', () => {
   it('absolutizes a relative href against url and marks it same-origin', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html: '<nav><a href="/posts/1">Post</a></nav>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
     });
     expect(result.isError).toBeFalsy();
     const parsed = extractLinksOutput.parse(result.structuredContent);
@@ -22,13 +22,13 @@ describe('extract_links tool', () => {
         isExternal: false,
       },
     ]);
-    expect(parsed.metadata.url).toBe(ORIGIN);
+    expect(parsed.metadata.baseUrl).toBe(ORIGIN);
   });
 
   it('marks a cross-origin href as external', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html: '<a href="https://other.example/y">Elsewhere</a>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
     expect(parsed.links[0]).toEqual({
@@ -40,21 +40,21 @@ describe('extract_links tool', () => {
   });
 
   it('captures the rel attribute verbatim', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html: '<a href="/x" rel="noopener nofollow">X</a>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
     expect(parsed.links[0]?.rel).toBe('noopener nofollow');
   });
 
   it('sameOriginOnly drops cross-origin links and keeps relative/fragment ones', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html:
         '<a href="/posts/1">Post</a>' +
         '<a href="https://other.example/y">Elsewhere</a>' +
         '<a href="#sec">Jump</a>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       sameOriginOnly: true,
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
@@ -66,9 +66,9 @@ describe('extract_links tool', () => {
   });
 
   it('absolutizes a fragment-only href and marks it same-origin', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html: '<a href="#sec">Jump</a>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
     expect(parsed.links[0]).toEqual({
@@ -80,12 +80,12 @@ describe('extract_links tool', () => {
   });
 
   it('treats mailto/tel/javascript hrefs as non-external and leaves them verbatim', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html:
         '<a href="mailto:a@b.example">mail</a>' +
         '<a href="tel:+15551234">call</a>' +
         '<a href="javascript:void(0)">js</a>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
     expect(parsed.links.map(link => [link.href, link.isExternal])).toEqual([
@@ -96,13 +96,13 @@ describe('extract_links tool', () => {
   });
 
   it('preserves document order, keeps duplicates, and skips anchors with no/empty href', () => {
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html:
         '<a href="/a">A</a>' +
         '<a name="bookmark">no href</a>' +
         '<a href="/a">A again</a>' +
         '<a href="">empty</a>',
-      url: ORIGIN,
+      baseUrl: ORIGIN,
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
     expect(parsed.links.map(link => link.text)).toEqual(['A', 'A again']);
@@ -115,7 +115,10 @@ describe('extract_links tool', () => {
   });
 
   it('emits a non-empty readable payload even when no links are found', () => {
-    const result = extractLinks({ html: '<p>no anchors here</p>', url: ORIGIN });
+    const result = extractLinksFromHtml({
+      html: '<p>no anchors here</p>',
+      baseUrl: ORIGIN,
+    });
     expect(result.isError).toBeFalsy();
     expect(
       (result.structuredContent as { content: string }).content.length,
@@ -127,7 +130,7 @@ describe('extract_links tool', () => {
       '<nav><a href="/nav-link">Nav</a></nav>' +
       '<main><a href="/main-link">Main</a></main>' +
       '<footer><a href="/footer-link">Footer</a></footer>';
-    const result = extractLinks({ html, url: ORIGIN });
+    const result = extractLinksFromHtml({ html, baseUrl: ORIGIN });
     const parsed = extractLinksOutput.parse(result.structuredContent);
     expect(parsed.links.map(link => link.text)).toEqual([
       'Nav',
@@ -140,9 +143,9 @@ describe('extract_links tool', () => {
     const html =
       '<nav id="nav"><a href="/n">Nav</a></nav>' +
       '<div id="peers"><a href="/p1">P1</a><a href="/p2">P2</a></div>';
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selectors: { include: '#peers' },
     });
     const parsed = extractLinksOutput.parse(result.structuredContent);
@@ -156,9 +159,9 @@ describe('extract_links tool', () => {
       '<a href="https://other.example/x">Ext</a>' +
       '</div>' +
       '<nav><a href="/n">Nav</a></nav>';
-    const result = extractLinks({
+    const result = extractLinksFromHtml({
       html,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       sameOriginOnly: true,
       selectors: { include: '#peers' },
     });

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  extractTables,
+  extractTablesFromHtml,
   extractTablesHandler,
 } from '../../src/tools/extract_tables.js';
 import { extractTablesOutput } from '../../src/tools/output-schema.js';
@@ -26,7 +26,7 @@ const SPAN_HTML =
 
 describe('extract_tables tool', () => {
   it('renders the rowspan/colspan matrix as GFM with a delimiter row', () => {
-    const result = extractTables({ html: SPAN_HTML, url: ORIGIN });
+    const result = extractTablesFromHtml({ html: SPAN_HTML, baseUrl: ORIGIN });
     expect(result.isError).toBeFalsy();
     const parsed = extractTablesOutput.parse(result.structuredContent);
     expect(parsed.tables).toHaveLength(1);
@@ -42,11 +42,11 @@ describe('extract_tables tool', () => {
     expect(lines[4]).toBe('| Bob | 25 | "quoted" |');
     expect(parsed.metadata.tableCount).toBe(1);
     expect(parsed.metadata.format).toBe('gfm');
-    expect(parsed.metadata.url).toBe(ORIGIN);
+    expect(parsed.metadata.baseUrl).toBe(ORIGIN);
   });
 
   it('quotes CSV fields containing commas and doubles embedded quotes', () => {
-    const result = extractTables({ html: SPAN_HTML, format: 'csv' });
+    const result = extractTablesFromHtml({ html: SPAN_HTML, format: 'csv' });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     const csv = parsed.tables[0]!.markdown;
     // Comma in "hello, world" forces quoting; embedded quote in "quoted" doubles.
@@ -57,7 +57,7 @@ describe('extract_tables tool', () => {
   });
 
   it('emits JSON rows keyed by the header row', () => {
-    const result = extractTables({ html: SPAN_HTML, format: 'json' });
+    const result = extractTablesFromHtml({ html: SPAN_HTML, format: 'json' });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     const records = JSON.parse(parsed.tables[0]!.markdown) as Record<
       string,
@@ -79,7 +79,7 @@ describe('extract_tables tool', () => {
 
   it('round-trips the saved.html fixture (two tables, all three formats)', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const gfm = extractTables({ html, url: ORIGIN, format: 'gfm' });
+    const gfm = extractTablesFromHtml({ html, baseUrl: ORIGIN, format: 'gfm' });
     const parsed = extractTablesOutput.parse(gfm.structuredContent);
     // The fixture has two <table> elements (headered + headerless), both inside
     // <article>. Both are emitted in document order.
@@ -90,12 +90,12 @@ describe('extract_tables tool', () => {
     expect(parsed.tables[0]!.markdown).toContain('Notes');
     expect(parsed.tables[1]!.markdown).toContain('Apple');
 
-    const csv = extractTables({ html, format: 'csv' });
+    const csv = extractTablesFromHtml({ html, format: 'csv' });
     const csvParsed = extractTablesOutput.parse(csv.structuredContent);
     expect(csvParsed.tables[0]!.markdown).toContain('"hello, world"');
     expect(csvParsed.tables[0]!.markdown).toContain('"""quoted"""');
 
-    const json = extractTables({ html, format: 'json' });
+    const json = extractTablesFromHtml({ html, format: 'json' });
     const jsonParsed = extractTablesOutput.parse(json.structuredContent);
     expect(
       JSON.parse(jsonParsed.tables[0]!.markdown) as Record<string, string>[],
@@ -112,7 +112,7 @@ describe('extract_tables tool', () => {
       '<aside><table><tr><th>Aside</th></tr><tr><td>aside-cell</td></tr></table></aside>' +
       '<footer><table><tr><td>footer-cell</td></tr></table></footer>' +
       '</body>';
-    const result = extractTables({ html, url: ORIGIN });
+    const result = extractTablesFromHtml({ html, baseUrl: ORIGIN });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     expect(parsed.metadata.tableCount).toBe(4);
     expect(parsed.tables.map(t => t.index)).toEqual([0, 1, 2, 3]);
@@ -131,7 +131,7 @@ describe('extract_tables tool', () => {
       '<table><tbody>' +
       '<tr><td>outer</td><td><table><tr><td>inner</td></tr></table></td></tr>' +
       '</tbody></table>';
-    const result = extractTables({ html });
+    const result = extractTablesFromHtml({ html });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     expect(parsed.metadata.tableCount).toBe(2);
     // The parent is a single-row matrix; the nested one is emitted separately.
@@ -146,7 +146,7 @@ describe('extract_tables tool', () => {
       '<table></table>' +
       '<table><tr><td>real</td></tr></table>' +
       '<table></table>';
-    const result = extractTables({ html });
+    const result = extractTablesFromHtml({ html });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     expect(parsed.metadata.tableCount).toBe(1);
     expect(parsed.tables[0]!.index).toBe(0);
@@ -154,7 +154,7 @@ describe('extract_tables tool', () => {
   });
 
   it('returns (no tables found) and an empty tables array when there are none', () => {
-    const result = extractTables({ html: '<p>no tables here</p>' });
+    const result = extractTablesFromHtml({ html: '<p>no tables here</p>' });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     expect(parsed.tables).toEqual([]);
     expect(parsed.metadata.tableCount).toBe(0);
@@ -171,7 +171,7 @@ describe('extract_tables tool', () => {
   });
 
   it('defaults format to gfm when format is omitted', () => {
-    const result = extractTables({ html: SPAN_HTML });
+    const result = extractTablesFromHtml({ html: SPAN_HTML });
     const parsed = extractTablesOutput.parse(result.structuredContent);
     expect(parsed.metadata.format).toBe('gfm');
     expect(parsed.tables[0]!.markdown).toContain('| --- | --- | --- |');
@@ -181,9 +181,9 @@ describe('extract_tables tool', () => {
     const html =
       '<div id="a"><table><tr><th>A</th></tr><tr><td>Alpha</td></tr></table></div>' +
       '<div id="b"><table><tr><th>B</th></tr><tr><td>Beta</td></tr></table></div>';
-    const result = extractTables({
+    const result = extractTablesFromHtml({
       html,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selectors: { include: '#a' },
     });
     const parsed = extractTablesOutput.parse(result.structuredContent);
@@ -196,9 +196,9 @@ describe('extract_tables tool', () => {
     const html =
       '<div id="a"><table><tr><td>Alpha</td></tr></table></div>' +
       '<aside class="ads"><table><tr><td>Ad</td></tr></table></aside>';
-    const result = extractTables({
+    const result = extractTablesFromHtml({
       html,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selectors: { exclude: ['.ads'] },
     });
     const parsed = extractTablesOutput.parse(result.structuredContent);

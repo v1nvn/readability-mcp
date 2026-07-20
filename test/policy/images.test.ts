@@ -1,5 +1,5 @@
 import { buildDocument } from '../../src/pipeline/dom.js';
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 import { collectImageInventory } from '../../src/policy/images.js';
 
 const ORIGIN = 'https://x.example/p';
@@ -133,9 +133,9 @@ describe('policy.images collectImageInventory', () => {
       `<img src="${DATA_GIF}" alt="placeholder">` +
       '<img src="/img/b.jpg" alt="B" width="100" height="50">' +
       '</article></body></html>';
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       html,
-      url: 'https://x.example/article',
+      baseUrl: 'https://x.example/article',
       imageInventory: true,
     });
     const images = (result.structuredContent as { images?: unknown }).images as Array<{
@@ -166,7 +166,10 @@ describe('policy.images collectImageInventory', () => {
       '<h1>Article</h1><p>Body text long enough to be readerable.</p>' +
       '<img src="/img/a.jpg" alt="A">' +
       '</article></body></html>';
-    const result = extractArticle({ html, url: 'https://x.example/article' });
+    const result = extractArticleFromHtml({
+      html,
+      baseUrl: 'https://x.example/article',
+    });
     expect(result.structuredContent).not.toHaveProperty('images');
   });
 });

@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractArticle } from '../../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../../src/tools/extract.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -10,7 +10,7 @@ const fixturePath = join(here, 'saved.html');
 const goldenPath = join(here, 'saved.golden.md');
 const pageUrl = 'https://example.com/blog/post';
 
-function payloadText(result: ReturnType<typeof extractArticle>): string {
+function payloadText(result: ReturnType<typeof extractArticleFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -18,7 +18,7 @@ function payloadText(result: ReturnType<typeof extractArticle>): string {
 describe('golden: react-spa saved.html', () => {
   it('extracts clean Markdown matching the reviewed golden', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl, format: 'markdown', gfm: true });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl, format: 'markdown', gfm: true });
 
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as StructuredContent;

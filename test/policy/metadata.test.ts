@@ -35,7 +35,7 @@ describe('policy.metadata cascade priority', () => {
     const m = resolveMetadata({
       document: doc(html),
       readability,
-      url: 'https://example.com/page',
+      baseUrl: 'https://example.com/page',
       textContent: 'word word word',
       wordCount: 3,
       readingTimeMin: 1,
@@ -61,7 +61,7 @@ describe('policy.metadata cascade priority', () => {
     const m = resolveMetadata({
       document: doc(html),
       readability: { title: 'R Title', byline: 'R Byline' },
-      url: 'https://example.com/page',
+      baseUrl: 'https://example.com/page',
       textContent: '',
       wordCount: 0,
       readingTimeMin: 0,
@@ -78,7 +78,7 @@ describe('policy.metadata cascade priority', () => {
     const m = resolveMetadata({
       document: doc(html),
       readability: null,
-      url: undefined,
+      baseUrl: undefined,
       textContent: 'hi',
       wordCount: 1,
       readingTimeMin: 1,
@@ -102,7 +102,7 @@ describe('policy.metadata cascade priority', () => {
     const m = resolveMetadata({
       document: doc(html),
       readability: null,
-      url: undefined,
+      baseUrl: undefined,
       textContent: '',
       wordCount: 0,
       readingTimeMin: 0,
@@ -120,7 +120,7 @@ describe('policy.metadata cascade priority', () => {
     const m = resolveMetadata({
       document: doc(html),
       readability: null,
-      url: undefined,
+      baseUrl: undefined,
       textContent: '',
       wordCount: 0,
       readingTimeMin: 0,
@@ -134,7 +134,7 @@ describe('policy.metadata token estimate', () => {
     return resolveMetadata({
       document: doc('<html><body></body></html>'),
       readability: null,
-      url: undefined,
+      baseUrl: undefined,
       textContent,
       wordCount: 0,
       readingTimeMin: 0,
@@ -167,7 +167,7 @@ describe('metadata.structured', () => {
     return resolveMetadata({
       document: doc(html),
       readability: null,
-      url: undefined,
+      baseUrl: undefined,
       textContent: '',
       wordCount: 0,
       readingTimeMin: 0,

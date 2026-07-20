@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
-
-import { extractArticle } from './tools/extract.js';
+import { extractArticleFromHtml } from './tools/extract.js';
+import { readHtmlFile } from './tools/html-source.js';
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Readable } from 'node:stream';
@@ -70,7 +69,7 @@ export async function readHtml(
   stream: Readable,
 ): Promise<string> {
   if (file !== undefined) {
-    return readFileSync(file, 'utf8');
+    return readHtmlFile(file);
   }
   const chunks: string[] = [];
   for await (const chunk of stream) {
@@ -104,7 +103,7 @@ export async function runCli(argv: readonly string[]): Promise<number> {
     const html = await readHtml(parsed.file, process.stdin);
     // json reuses the markdown pipeline; the structured object is serialized below.
     const pipelineFormat = parsed.format === 'html' ? 'html' : 'markdown';
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       html,
       format: pipelineFormat,
       ...(parsed.maxChars !== undefined ? { maxChars: parsed.maxChars } : {}),

@@ -9,7 +9,7 @@ import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createHash } from 'node:crypto';
 
 import type { ToolHandle } from './server.js';
-import type { ExtractInput } from './tools/schemas.js';
+import type { ExtractFromHtmlInput } from './tools/schemas.js';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type {
@@ -134,9 +134,9 @@ export function originalHashOf(html: string): string {
 }
 
 // Output-affecting options participate in the fingerprint so the same page with
-// format:'html' vs format:'markdown' does not collide. `url` absolutizes links
-// in the output, so it must participate too.
-function buildArgsFingerprint(args: ExtractInput): string {
+// format:'html' vs format:'markdown' does not collide. `baseUrl` absolutizes
+// links in the output, so it must participate too.
+function buildArgsFingerprint(args: ExtractFromHtmlInput): string {
   const sel = args.selectors
     ? {
         exclude: args.selectors.exclude ?? [],
@@ -170,7 +170,7 @@ function buildArgsFingerprint(args: ExtractInput): string {
     sanitize: args.sanitize,
     selectors: sel,
     tables: args.tables ?? null,
-    url: args.url ?? null,
+    baseUrl: args.baseUrl ?? null,
     wordsPerMinute: args.wordsPerMinute,
   };
   return JSON.stringify(fp);
@@ -194,7 +194,7 @@ function combineKey(normalizedHash: string, argsFingerprint: string): string {
 
 export function lookup(
   html: string,
-  args: ExtractInput,
+  args: ExtractFromHtmlInput,
 ): CacheLookup | undefined {
   const now = Date.now();
   evictExpired(now);
@@ -213,7 +213,7 @@ export function lookup(
 
 export function storeResult(
   html: string,
-  args: ExtractInput,
+  args: ExtractFromHtmlInput,
   result: {
     contentText: string;
     structuredContent: unknown;

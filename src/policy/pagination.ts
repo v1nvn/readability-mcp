@@ -21,13 +21,13 @@ function usableHref(href: null | string): string | undefined {
 
 function findPaginated(
   document: Document,
-  url: string | undefined,
+  baseUrl: string | undefined,
 ): PaginationSignal | undefined {
   const linkNext = document.querySelector('link[rel="next"][href]');
   if (linkNext) {
     const href = usableHref(linkNext.getAttribute('href'));
     if (href) {
-      return { type: 'paginated', nextUrl: absolutize(href, url) };
+      return { type: 'paginated', nextUrl: absolutize(href, baseUrl) };
     }
   }
 
@@ -35,7 +35,7 @@ function findPaginated(
   if (aRelNext) {
     const href = usableHref(aRelNext.getAttribute('href'));
     if (href) {
-      return { type: 'paginated', nextUrl: absolutize(href, url) };
+      return { type: 'paginated', nextUrl: absolutize(href, baseUrl) };
     }
   }
 
@@ -48,7 +48,7 @@ function findPaginated(
     if (!href) {
       continue;
     }
-    return { type: 'paginated', nextUrl: absolutize(href, url) };
+    return { type: 'paginated', nextUrl: absolutize(href, baseUrl) };
   }
 
   return undefined;
@@ -98,7 +98,7 @@ function findInfinite(document: Document): PaginationSignal | undefined {
 // a load-more sentinel. Read-only — never follows or fetches.
 export function detectPagination(
   document: Document,
-  url?: string,
+  baseUrl?: string,
 ): PaginationSignal | undefined {
-  return findPaginated(document, url) ?? findInfinite(document);
+  return findPaginated(document, baseUrl) ?? findInfinite(document);
 }

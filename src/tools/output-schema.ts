@@ -17,7 +17,7 @@ const metadataObjectSchema = z
       .string()
       .optional()
       .describe(
-        'Declared canonical URL from <link rel="canonical"> (or og:url as fallback). Distinct from url, which is the origin context passed in.',
+        'Declared canonical URL from <link rel="canonical"> (or og:url as fallback). Distinct from baseUrl, which is the origin context passed in.',
       ),
     estimator: z
       .string()
@@ -66,7 +66,10 @@ const metadataObjectSchema = z
       .describe(
         'Rough output token count (chars/4 by default) for context budgeting.',
       ),
-    url: z.string().optional().describe('The url passed in (origin context).'),
+    baseUrl: z
+      .string()
+      .optional()
+      .describe('The baseUrl passed in (origin context).'),
     wordCount: z
       .number()
       .int()
@@ -110,7 +113,7 @@ export const imageEntrySchema = z
   .object({
     src: z
       .string()
-      .describe('Absolute (resolved) image URL, absolutized against url.'),
+      .describe('Absolute (resolved) image URL, absolutized against baseUrl.'),
     alt: z
       .string()
       .describe('The img alt attribute, or empty string when absent.'),
@@ -352,10 +355,10 @@ export const outlineOutputShape = {
         .describe(
           'Document title from <title>, falling back to the first <h1>.',
         ),
-      url: z
+      baseUrl: z
         .string()
         .optional()
-        .describe('The url passed in (origin context, never fetched).'),
+        .describe('The baseUrl passed in (origin context, never fetched).'),
     })
     .describe('Outline document metadata.'),
 } as const;
@@ -416,7 +419,7 @@ export const linkObjectSchema = z
     href: z
       .string()
       .describe(
-        'Absolute href (resolved against url when provided); unchanged when url is absent or the pair fails to parse.',
+        'Absolute href (resolved against baseUrl when provided); unchanged when baseUrl is absent or the pair fails to parse.',
       ),
     rel: z
       .string()
@@ -426,7 +429,7 @@ export const linkObjectSchema = z
     isExternal: z
       .boolean()
       .describe(
-        'True when url is provided and the href parses to a different origin than url. False for relative, fragment, same-origin, non-http(s) (mailto/tel/javascript), and malformed hrefs.',
+        'True when baseUrl is provided and the href parses to a different origin than baseUrl. False for relative, fragment, same-origin, non-http(s) (mailto/tel/javascript), and malformed hrefs.',
       ),
   })
   .describe(
@@ -447,14 +450,14 @@ export const extractLinksOutputShape = {
   links: z
     .array(linkObjectSchema)
     .describe(
-      'Anchors in document order, hrefs absolutized against url. No deduplication.',
+      'Anchors in document order, hrefs absolutized against baseUrl. No deduplication.',
     ),
   metadata: z
     .object({
-      url: z
+      baseUrl: z
         .string()
         .optional()
-        .describe('The url passed in (origin context, never fetched).'),
+        .describe('The baseUrl passed in (origin context, never fetched).'),
     })
     .describe('Extract-links document metadata.'),
 } as const;
@@ -504,10 +507,10 @@ export const extractTablesOutputShape = {
     ),
   metadata: z
     .object({
-      url: z
+      baseUrl: z
         .string()
         .optional()
-        .describe('The url passed in (origin context).'),
+        .describe('The baseUrl passed in (origin context).'),
       format: tableFormatSchema.describe('The requested render format.'),
       tableCount: z.number().int().describe('Number of tables emitted.'),
     })
@@ -541,7 +544,7 @@ const listItemSchema = z
     url: z
       .string()
       .describe(
-        'Absolute href of the primary anchor, resolved against url. Always non-empty for emitted items.',
+        'Absolute href of the primary anchor, resolved against baseUrl. Always non-empty for emitted items.',
       ),
   })
   .describe('One detected list item with its title, URL, snippet, and score.');
@@ -597,10 +600,10 @@ export const extractListOutputShape = {
     .describe('List-detection telemetry describing the winning candidate.'),
   metadata: z
     .object({
-      url: z
+      baseUrl: z
         .string()
         .optional()
-        .describe('The url passed in (origin context, never fetched).'),
+        .describe('The baseUrl passed in (origin context, never fetched).'),
     })
     .describe('Extract-list document metadata.'),
 } as const;

@@ -1,10 +1,10 @@
-import { htmlToMarkdown } from '../../src/tools/html_to_markdown.js';
+import { htmlToMarkdownFromHtml } from '../../src/tools/html_to_markdown.js';
 
 describe('frontmatter token estimate', () => {
   it('yaml frontmatter includes tokenEstimate and estimator lines', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html: '<h2>Heading</h2><p>some fragment text here</p>',
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
       metadataMode: 'yaml',
     });
     const text = (result.content[0] as { text: string }).text;
@@ -13,9 +13,9 @@ describe('frontmatter token estimate', () => {
   });
 
   it('json frontmatter includes tokenEstimate and estimator fields', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html: '<h2>Heading</h2><p>some fragment text here</p>',
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
       metadataMode: 'json',
     });
     const text = (result.content[0] as { text: string }).text;

@@ -25,8 +25,14 @@ import { resolveReadabilityOptions } from '../policy/resolver.js';
 import { computeTextMetrics } from '../policy/text.js';
 import { truncateMarkdown } from '../policy/truncate.js';
 import * as cache from '../resources.js';
+import { readHtmlFile } from './html-source.js';
 import { outputSchemaShape } from './output-schema.js';
-import { extractInputSchema, extractInputShape } from './schemas.js';
+import {
+  type ExtractFromHtmlInput,
+  type ExtractInput,
+  extractInputSchema,
+  extractInputShape,
+} from './schemas.js';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -35,10 +41,26 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 const EXTRACTED_NODE = 'readability';
 
 export function extractArticle(rawArgs: unknown): CallToolResult {
-  const args = extractInputSchema.parse(rawArgs);
+  const { localPath, ...rest } = extractInputSchema.parse(rawArgs);
+  return extractArticleFromHtml({ html: readHtmlFile(localPath), ...rest });
+}
+
+// Schema defaults materialized once. Callers that pass only a subset of the
+// knobs (extract_section's scoped delegation, the CLI, tests) get the rest
+// filled from here, so the worker always sees a complete input. `localPath` is
+// required only to anchor the source; a sentinel parse materializes every
+// `.default()` and the type narrows it back out.
+const DEFAULTS: Omit<ExtractInput, 'localPath'> = extractInputSchema.parse({
+  localPath: '',
+});
+
+export function extractArticleFromHtml(
+  input: Readonly<ExtractFromHtmlInput>,
+): CallToolResult {
+  const merged = { ...DEFAULTS, ...input };
   const {
     html,
-    url,
+    baseUrl,
     cache: useCache,
     selectors,
     extraction,
@@ -60,13 +82,13 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     chunk,
     imageInventory,
     debug,
-  } = args;
+  } = merged;
 
   // Cache hit short-circuits the pipeline. A clone is returned so the cache
   // field can be overwritten to reflect *this* call's hashes (normalizedHash is
   // stable across re-renders, but originalHash differs by nonce/CSP/…).
   if (useCache) {
-    const hit = cache.lookup(html, args);
+    const hit = cache.lookup(html, merged);
     if (hit) {
       const cloned = JSON.parse(
         JSON.stringify(hit.entry.structuredContent),
@@ -97,7 +119,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   // normalize/turndown respectively and aren't carved out as their own stages.
   const trace = new TraceCollector(debug);
 
-  const { document, window } = buildDocument(html, url);
+  const { document, window } = buildDocument(html, baseUrl);
   // Paywall overlays are stripped by normalizeDocument's stripChrome (a Piano
   // modal is role="dialog" + full-viewport fixed), so gating must be detected
   // before normalization. Pagination chrome survives stripChrome and is detected after.
@@ -114,7 +136,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
     const imagesResolved = resolveLazyImages(document);
     // Detect before applySelectors: a caller's selectors.include could scope the
     // body and hide pagination chrome, but "more content exists" is still true.
-    const pagination = detectPagination(document, url);
+    const pagination = detectPagination(document, baseUrl);
     applySelectors(document, selectors);
     const codeBlocksCanonicalized = canonicalizeCodeBlocks(document);
     if (codeBlocksCanonicalized > 0) {
@@ -181,7 +203,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
         headingStyle,
         images,
         tables,
-        url,
+        baseUrl,
       }),
     );
   } else {
@@ -196,7 +218,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
         images,
         sanitize: shouldSanitize,
         tables,
-        url,
+        baseUrl,
         window,
       }),
     );
@@ -223,7 +245,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
       readability: article,
       readingTimeMin,
       textContent,
-      url,
+      baseUrl,
       wordCount,
     });
     return { metadata };
@@ -281,7 +303,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   // Runs against sanitizedHtml so the inventory reflects exactly what the host
   // sees in content[0].text — post-sanitization, post-lazy-resolution.
   const imageInventoryEntries = imageInventory
-    ? collectImageInventory(sanitizedHtml, window, url)
+    ? collectImageInventory(sanitizedHtml, window, baseUrl)
     : undefined;
 
   const baseStructuredContent = {
@@ -298,7 +320,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   // signal on the returned object only.
   let structuredContent = baseStructuredContent;
   if (useCache) {
-    const stored = cache.storeResult(html, args, {
+    const stored = cache.storeResult(html, merged, {
       contentText: payload,
       structuredContent: baseStructuredContent,
     });
@@ -321,7 +343,7 @@ export function extractArticle(rawArgs: unknown): CallToolResult {
   };
 }
 
-export const EXTRACT_TOOL_DESCRIPTION = `Extract the main article from already-rendered (post-JavaScript) HTML and return clean Markdown plus metadata and diagnostics. The server fetches nothing: \`html\` is the only source, and \`url\` (optional) is used solely to absolutize relative links. Hand it the output of \`document.documentElement.outerHTML\` from a browser/devtools capture.`;
+export const EXTRACT_TOOL_DESCRIPTION = `Extract the main article from already-rendered (post-JavaScript) HTML and return clean Markdown plus metadata and diagnostics. The server fetches nothing: \`localPath\` (a file holding the rendered HTML, e.g. \`document.documentElement.outerHTML\` written to disk by a browser/devtools capture) is the only source, and \`baseUrl\` (optional) is used solely to absolutize relative links.`;
 
 export function extractHandler(args: unknown): CallToolResult {
   try {

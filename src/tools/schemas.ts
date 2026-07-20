@@ -17,6 +17,12 @@ export const imageModeSchema = z.enum([
 ]);
 export const tableFormatSchema = z.enum(['csv', 'gfm', 'json']);
 
+export const localPathField = z
+  .string()
+  .describe(
+    'Absolute or relative path to a file holding the already-rendered (post-JavaScript) HTML to process, e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. Read by the server so the page bytes never enter the model context — only this path string does. Resolved relative to the server process working directory; the server makes no outbound requests.',
+  );
+
 export const selectorsSchema = z
   .object({
     include: z
@@ -137,10 +143,10 @@ export const turndownOptionsShape = {
     )
     .optional(),
   // zod v4 renamed `z.string().url()` to `z.url()`.
-  url: z
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL for absolutizing relative links and images. NEVER fetched — origin context only.',
+      'Base URL for absolutizing relative links and images. NEVER fetched — origin context only.',
     )
     .optional(),
   wordsPerMinute: z
@@ -154,11 +160,7 @@ export const turndownOptionsShape = {
 } as const;
 
 export const extractInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript), e.g. the result of document.documentElement.outerHTML from a browser/devtools capture. This is the ONLY input the server reads; it makes no outbound requests.',
-    ),
+  localPath: localPathField,
   ...turndownOptionsShape,
 
   cache: z
@@ -212,11 +214,7 @@ export const extractInputShape = {
 export const extractInputSchema = z.object(extractInputShape);
 
 export const htmlToMarkdownInputShape = {
-  html: z
-    .string()
-    .describe(
-      'HTML fragment to convert to Markdown. No Readability article scoring is applied — the fragment is normalized and converted as-is.',
-    ),
+  localPath: localPathField,
   ...turndownOptionsShape,
   selectors: selectorsSchema,
 } as const;
@@ -224,15 +222,11 @@ export const htmlToMarkdownInputShape = {
 export const htmlToMarkdownInputSchema = z.object(htmlToMarkdownInputShape);
 
 export const outlineInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript) to walk for headings. No Readability scoring, Turndown, or sanitization is applied.',
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL, carried through to metadata.url and used to absolutize links. NEVER fetched — origin context only.',
+      'Base URL, carried through to metadata.baseUrl and used to absolutize links. NEVER fetched — origin context only.',
     )
     .optional(),
   selectors: selectorsSchema,
@@ -241,15 +235,11 @@ export const outlineInputShape = {
 export const outlineInputSchema = z.object(outlineInputShape);
 
 export const extractMetadataInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript) to resolve bibliographic metadata from. No Readability scoring, Turndown, or sanitization is applied — only <title>, <meta>, <link rel="canonical">, and JSON-LD are read.',
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL, carried through to metadata.url and used to absolutize links. NEVER fetched — origin context only.',
+      'Base URL, carried through to metadata.baseUrl and used to absolutize links. NEVER fetched — origin context only.',
     )
     .optional(),
 } as const;
@@ -257,15 +247,11 @@ export const extractMetadataInputShape = {
 export const extractMetadataInputSchema = z.object(extractMetadataInputShape);
 
 export const extractLinksInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript) to collect anchor links from. No Readability scoring, Turndown, or sanitization is applied — links are gathered from the raw parsed DOM, so nav/footer/main links survive.',
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL for absolutizing relative hrefs and computing isExternal. NEVER fetched — origin context only.',
+      'Base URL for absolutizing relative hrefs and computing isExternal. NEVER fetched — origin context only.',
     )
     .optional(),
   sameOriginOnly: z
@@ -311,15 +297,11 @@ export const chunkTextInputShape = {
 export const chunkTextInputSchema = z.object(chunkTextInputShape);
 
 export const extractSectionInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript) to extract one section from. Routed through extract’s selectors.include path — selector mode passes straight through; heading mode wraps the matched subtree first. This is the ONLY input the server reads; it makes no outbound requests.',
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL for absolutizing relative links and images. NEVER fetched — origin context only.',
+      'Base URL for absolutizing relative links and images. NEVER fetched — origin context only.',
     )
     .optional(),
   selector: z
@@ -352,15 +334,11 @@ export const extractSectionInputSchema = z
   });
 
 export const extractTablesInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript) to walk for tables. No Readability scoring, Turndown, or sanitization is applied — every <table> in the parsed DOM is rendered, including tables outside the article body that the `tables` option on `extract` would never see.',
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL, carried through to metadata.url. NEVER fetched — origin context only.',
+      'Base URL, carried through to metadata.baseUrl. NEVER fetched — origin context only.',
     )
     .optional(),
   format: tableFormatSchema
@@ -374,15 +352,11 @@ export const extractTablesInputShape = {
 export const extractTablesInputSchema = z.object(extractTablesInputShape);
 
 export const extractListInputShape = {
-  html: z
-    .string()
-    .describe(
-      'Already-rendered HTML (post-JavaScript) of an index/search/blog-roll/HN-style page. No Readability scoring or Turndown is applied — the page is walked for a repeated same-shape sibling structure (e.g. <tr class="athing">, <li>, <article class="post">) each carrying a navigation anchor, and the winning cluster is returned as a list of items.',
-    ),
-  url: z
+  localPath: localPathField,
+  baseUrl: z
     .url()
     .describe(
-      'Origin URL for absolutizing item hrefs against. NEVER fetched — origin context only.',
+      'Base URL for absolutizing item hrefs against. NEVER fetched — origin context only.',
     )
     .optional(),
   selectors: selectorsSchema,
@@ -400,3 +374,20 @@ export type ExtractTablesInput = z.infer<typeof extractTablesInputSchema>;
 export type HtmlToMarkdownInput = z.infer<typeof htmlToMarkdownInputSchema>;
 export type OutlineInput = z.infer<typeof outlineInputSchema>;
 export type Selectors = z.infer<typeof selectorsSchema>;
+
+// A worker takes the same fields as its public schema minus `localPath`, plus
+// the already-resolved `html` string. The option fields are all optional here:
+// the public fn hands a fully-defaulted object (it parsed the schema), while
+// internal callers (the CLI, extract_section, tests) pass only what they care
+// about and the worker merges schema defaults for the rest. Tools whose schema
+// has no `.default()` fields have nothing to merge.
+export type FromHtmlInput<T> = Partial<Omit<T, 'localPath'>> & { html: string };
+
+export type ExtractFromHtmlInput = FromHtmlInput<ExtractInput>;
+export type HtmlToMarkdownFromHtmlInput = FromHtmlInput<HtmlToMarkdownInput>;
+export type OutlineFromHtmlInput = FromHtmlInput<OutlineInput>;
+export type ExtractLinksFromHtmlInput = FromHtmlInput<ExtractLinksInput>;
+export type ExtractListFromHtmlInput = FromHtmlInput<ExtractListInput>;
+export type ExtractMetadataFromHtmlInput = FromHtmlInput<ExtractMetadataInput>;
+export type ExtractSectionFromHtmlInput = FromHtmlInput<ExtractSectionInput>;
+export type ExtractTablesFromHtmlInput = FromHtmlInput<ExtractTablesInput>;

@@ -2,15 +2,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractArticle } from '../../../src/tools/extract.js';
-import { htmlToMarkdown } from '../../../src/tools/html_to_markdown.js';
+import { extractArticleFromHtml } from '../../../src/tools/extract.js';
+import { htmlToMarkdownFromHtml } from '../../../src/tools/html_to_markdown.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturePath = join(here, 'saved.html');
 const pageUrl = 'https://docs.example.com/guides/code-langs';
 
-function payloadText(result: ReturnType<typeof extractArticle>): string {
+function payloadText(result: ReturnType<typeof extractArticleFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -18,9 +18,9 @@ function payloadText(result: ReturnType<typeof extractArticle>): string {
 describe('code-langs: extract emits tagged fences', () => {
   it('produces fenced blocks for all four conventions', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       html,
-      url: pageUrl,
+      baseUrl: pageUrl,
       format: 'markdown',
       gfm: true,
     });
@@ -41,9 +41,9 @@ describe('code-langs: extract emits tagged fences', () => {
 
 describe('code-langs: html_to_markdown is unchanged', () => {
   it('tags a GitHub block via gfm native extraction (canonicalizeCodeBlocks is extract-only)', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html: '<div class="highlight highlight-source-js"><pre><code>const x = 1;</code></pre></div>',
-      url: pageUrl,
+      baseUrl: pageUrl,
       format: 'markdown',
       gfm: true,
     });

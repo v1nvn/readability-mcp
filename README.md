@@ -2,7 +2,7 @@
 
 Turn **already-rendered HTML** (captured post-JavaScript from a browser or [chrome-devtools MCP](https://github.com/anthropic/claude-code-chrome-devtools)) into clean, LLM-friendly **Markdown + metadata**, using [Mozilla Readability](https://github.com/mozilla/readability), [Turndown](https://github.com/mixmark-io/turndown), and [DOMPurify](https://github.com/cure53/DOMPurify).
 
-The key idea: **rendering and extraction are decoupled.** A real browser (chrome-devtools) owns rendering; this server only transforms the HTML it is handed. **The server makes no outbound requests** — there is no `fetch`, no SSRF surface. The optional `url` is *origin context only*, used to absolutize relative links; it is never fetched.
+The key idea: **rendering and extraction are decoupled.** A real browser (chrome-devtools) owns rendering; this server only transforms HTML it reads from a file. **The server makes no outbound requests** — there is no `fetch`, no SSRF surface. Every HTML-input tool takes a `localPath` (a file on disk), never an inline string, so a full rendered page never enters the model context. The optional `baseUrl` is *origin context only*, used to absolutize relative links; it is never fetched.
 
 ## Install
 
@@ -38,14 +38,17 @@ The Smithery manifest pins the `stdio` startCommand (this server ships `StdioSer
 The motivating flow is two hops — each tool does the one thing it is best at:
 
 ```js
-// 1. In the chrome-devtools MCP, grab the RENDERED document (post-JS):
+// 1. In the chrome-devtools MCP, grab the RENDERED document (post-JS) and write
+//    it to a file via evaluate_script's `filePath` arg (the model emits only a
+//    path, never the page bytes):
 mcp__chrome-devtools__evaluate_script({
   function: () => document.documentElement.outerHTML,
+  filePath: "/tmp/page.html",
 });
 
-// 2. Hand the returned HTML string to readability-mcp.
-//    `url` is OPTIONAL context (origin for absolutizing relative links) — never fetched.
-mcp__readability__extract({ html: "<that string>", url: pageUrl });
+// 2. Point readability-mcp at that file.
+//    `baseUrl` is OPTIONAL context (origin for absolutizing relative links) — never fetched.
+mcp__readability__extract({ localPath: "/tmp/page.html", baseUrl: pageUrl });
 ```
 
 This matters most for SPAs and JS-augmented pages, where the initial HTML is an empty `<div id="root">` and only the post-JS DOM has the content.
@@ -69,14 +72,16 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 All ten always-on tools return MCP **structured content** (`schemaVersion` plus a tool-specific payload of `metadata` / `diagnostics` / `items` / …) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. A sampling-capable host also sees an eleventh — `summarize` — registered after the `initialize` handshake when the client advertises the MCP `sampling` capability. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
+**`localPath` — the only HTML input.** Every HTML-input tool takes a `localPath` pointing at a file holding the already-rendered (post-JavaScript) HTML. The server reads the bytes itself, so the page never enters the model context — the model emits only a path string. The motivating hop is chrome-devtools → readability: `evaluate_script` writes `document.documentElement.outerHTML` to a file via its `filePath` arg, then the tool reads that path. Resolved relative to the server process working directory; prefer absolute paths so the chrome-devtools capture and this read agree on location.
+
 ### `extract` — primary tool
 
 Extracts the main article from rendered HTML and returns Markdown + metadata + diagnostics.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; used to absolutize relative links/images. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; used to absolutize relative links/images. |
 | `format` | `markdown` | `markdown` \| `html` \| `text` \| `json`. `json` emits `{metadata, content, diagnostics}`. |
 | `metadataMode` | `none` | `none` \| `yaml` \| `json` — prepend a metadata block to the markdown/text payload. |
 | `extraction` | `balanced` | `balanced` \| `aggressive` \| `conservative` — maps to Readability's scorer knobs. |
@@ -104,7 +109,7 @@ Extracts the main article from rendered HTML and returns Markdown + metadata + d
 
 ### `html_to_markdown` — fragment path
 
-Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Shares the `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `tables`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, `url`, and `debug` options. Metadata is minimal (`url`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
+Converts an arbitrary HTML fragment to Markdown **without** Readability scoring (e.g. a snippet already isolated via chrome-devtools). Same Turndown + DOMPurify path; reports `fallbackUsed: true`, `extractedNode: "fragment"`. Takes `localPath` plus the same `format`, `gfm`, `headingStyle`, `codeBlockStyle`, `images`, `tables`, `sanitize`, `maxChars`, `wordsPerMinute`, `selectors`, `baseUrl`, and `debug` options as `extract`. Metadata is minimal (`baseUrl`, `wordCount`, `readingTimeMin`, and a title from the fragment's first heading).
 
 ### `extract_section` — one section by selector or heading
 
@@ -112,8 +117,8 @@ Returns just one section of a document — "give me the Authentication section" 
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; used to absolutize relative links/images. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; used to absolutize relative links/images. |
 | `selector` | — | CSS selector scoping extraction to one subtree; passed straight through as `selectors.include`. Provide exactly one of `selector`/`heading`. |
 | `heading` | — | Heading text selecting one section; the section spans from this heading to the next same-or-higher-level heading. Case-insensitive; first exact match wins, falling back to the first substring contain. Provide exactly one of `selector`/`heading`. |
 
@@ -125,12 +130,12 @@ Extracts **every** `<table>` on the page — a `querySelectorAll('table')` walk 
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; carried through to `metadata.baseUrl`. |
 | `format` | `gfm` | `gfm` (default, native GFM table with a delimiter row) \| `csv` (RFC-4180-ish, quoted fields) \| `json` (array of row objects keyed by the header row). |
 | `selectors` | — | Same `include`/`exclude` shape as `extract`. Scope the walk: `include:"#shareholding"` returns only tables inside that subtree; `exclude:[".ads"]` drops matches anywhere on the page. |
 
-Output shape: `structuredContent.tables = [{index, rows, cols, markdown}]` — one entry per non-empty table in document order, where `rows`/`cols` are the matrix dimensions after rowspan/colspan resolution and `markdown` is the table rendered in the requested format. All entries' `markdown` are joined by blank lines into `content[0].text` (`"(no tables found)"` when the page has none). `metadata = {url?, format, tableCount}`. Empty `<table>` elements (no rows) are skipped, so `index` is contiguous over the emitted tables. Nested `<table>`s are emitted as their own entries in document order (the matrix walk excludes nested tables from a parent's matrix; `querySelectorAll` then returns the nested table separately).
+Output shape: `structuredContent.tables = [{index, rows, cols, markdown}]` — one entry per non-empty table in document order, where `rows`/`cols` are the matrix dimensions after rowspan/colspan resolution and `markdown` is the table rendered in the requested format. All entries' `markdown` are joined by blank lines into `content[0].text` (`"(no tables found)"` when the page has none). `metadata = {baseUrl?, format, tableCount}`. Empty `<table>` elements (no rows) are skipped, so `index` is contiguous over the emitted tables. Nested `<table>`s are emitted as their own entries in document order (the matrix walk excludes nested tables from a parent's matrix; `querySelectorAll` then returns the nested table separately).
 
 ### `extract_list` — feed/index/search pages
 
@@ -138,11 +143,11 @@ A **second engine** for pages Readability cannot turn into one article: HN-style
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; used to absolutize item `href`s. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; used to absolutize item `href`s. |
 | `selectors` | — | Same `include`/`exclude` shape as `extract`. `include` picks which list the detector scores against — note the detector is comparative ("the cluster with the most items wins"), so pre-scoping to one container subverts that comparison; treat it as an "I know which list I want" escape hatch. |
 
-Output shape: `structuredContent = {schemaVersion, content, items, diagnostics, metadata}`. `items = [{title, url, snippet, score}]` in document order — `snippet` is the item's text teaser (empty when the cluster has no per-item text), `score` is the detector's internal ranking weight. `diagnostics = {detected, itemCount, containerSelector, itemTag, confidence, note}`: `detected:false` means no list structure was found (`itemCount:0`, empty `items`, and a `note` explaining why); `containerSelector`/`itemTag` name the winning cluster; `confidence` is a rough quality signal. `metadata = {url}`.
+Output shape: `structuredContent = {schemaVersion, content, items, diagnostics, metadata}`. `items = [{title, url, snippet, score}]` in document order — `snippet` is the item's text teaser (empty when the cluster has no per-item text), `score` is the detector's internal ranking weight. `diagnostics = {detected, itemCount, containerSelector, itemTag, confidence, note}`: `detected:false` means no list structure was found (`itemCount:0`, empty `items`, and a `note` explaining why); `containerSelector`/`itemTag` name the winning cluster; `confidence` is a rough quality signal. `metadata = {baseUrl}`.
 
 ### `outline` — heading pre-check
 
@@ -150,11 +155,11 @@ Returns the document outline (`h1`–`h6` in document order with stable anchor i
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; carried through to `metadata.baseUrl`. |
 | `selectors` | — | Same `include`/`exclude` shape as `extract`. `include:"main"` scopes the heading walk to that subtree, dropping nav/footer headings from the outline. |
 
-Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an indented-bullet TOC rendered into `content[0].text`, and `metadata = {title?, url?}` (`title` falls back from `<title>` to the first `<h1>`). Anchor precedence: the heading's own `id`, then a descendant permalink's `#fragment`, then a slug of the text (deduped `-1`, `-2`, … for generated slugs only — author ids are kept verbatim).
+Output shape: `structuredContent.outline = [{level, text, anchor}]` plus an indented-bullet TOC rendered into `content[0].text`, and `metadata = {title?, baseUrl?}` (`title` falls back from `<title>` to the first `<h1>`). Anchor precedence: the heading's own `id`, then a descendant permalink's `#fragment`, then a slug of the text (deduped `-1`, `-2`, … for generated slugs only — author ids are kept verbatim).
 
 ### `extract_links` — anchor inventory for crawl/navigation
 
@@ -162,23 +167,23 @@ Returns a structured list of anchor links — `[{text, href, rel, isExternal}]` 
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; absolutizes relative `href`s and drives `isExternal`. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; absolutizes relative `href`s and drives `isExternal`. |
 | `sameOriginOnly` | `false` | Drop cross-origin links; keep same-origin, relative, fragment, and non-http(s) (`mailto`/`tel`/`javascript`) links. |
 | `selectors` | — | Same `include`/`exclude` shape as `extract`. DOM-level scope (e.g. `include:"#peers"`) applied before the link walk; composes with `sameOriginOnly`'s semantic filter. |
 
-Output shape: `structuredContent.links = [{text, href, rel, isExternal}]` plus a `- [text](href)` rendering in `content[0].text`. `href` is absolutized against `url` (unchanged when `url` is absent or the pair fails to parse). `isExternal` is `true` only when `url` is provided **and** the absolutized `href` parses to a different HTTP(S) origin — relative, fragment, same-origin, `mailto:`/`tel:`/`javascript:`, and malformed hrefs are all `false`. `rel` is the raw attribute value (`"noopener noreferrer"`, `"nofollow"`, …) or `""` when absent. Anchors with no `href` are skipped; the rest are kept in document order with **no deduplication**.
+Output shape: `structuredContent.links = [{text, href, rel, isExternal}]` plus a `- [text](href)` rendering in `content[0].text`. `href` is absolutized against `baseUrl` (unchanged when `baseUrl` is absent or the pair fails to parse). `isExternal` is `true` only when `baseUrl` is provided **and** the absolutized `href` parses to a different HTTP(S) origin — relative, fragment, same-origin, `mailto:`/`tel:`/`javascript:`, and malformed hrefs are all `false`. `rel` is the raw attribute value (`"noopener noreferrer"`, `"nofollow"`, …) or `""` when absent. Anchors with no `href` are skipped; the rest are kept in document order with **no deduplication**.
 
 ### `extract_metadata` — bibliographic pre-check
 
-Returns only the bibliographic metadata — `title`, `byline`, `siteName`, `lang`, `publishedTime`, `excerpt`, `canonical`, `url` — without running Readability/Turndown, as a fast pre-check for crawlers and citation. Short-circuits the pipeline before the article body is scored; resolves the same metadata cascade as `extract` (JSON-LD → OpenGraph → Twitter → `<meta>`/`<time>` → `<title>`), plus `<link rel="canonical">` → `og:url` for `canonical`. The `url` field is the origin you passed in; `canonical` is the page's declared canonical — they often differ.
+Returns only the bibliographic metadata — `title`, `byline`, `siteName`, `lang`, `publishedTime`, `excerpt`, `canonical`, `baseUrl` — without running Readability/Turndown, as a fast pre-check for crawlers and citation. Short-circuits the pipeline before the article body is scored; resolves the same metadata cascade as `extract` (JSON-LD → OpenGraph → Twitter → `<meta>`/`<time>` → `<title>`), plus `<link rel="canonical">` → `og:url` for `canonical`. The `baseUrl` field is the origin you passed in; `canonical` is the page's declared canonical — they often differ.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; carried through to `metadata.url`. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; carried through to `metadata.baseUrl`. |
 
-Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, publishedTime?, excerpt?, canonical?, url?}` plus a human-readable `key: value` rendering in `content[0].text`. Note: `wordCount`/`readingTimeMin`/`tokenEstimate` are **not** populated by this tool — they are meaningless without the extracted body.
+Output shape: `structuredContent.metadata = {title?, byline?, siteName?, lang?, publishedTime?, excerpt?, canonical?, baseUrl?}` plus a human-readable `key: value` rendering in `content[0].text`. Note: `wordCount`/`readingTimeMin`/`tokenEstimate` are **not** populated by this tool — they are meaningless without the extracted body.
 
 ### `explain` — extraction post-mortem
 
@@ -186,8 +191,8 @@ Post-mortem diagnostics for an `extract` call: surfaces **why** Readability pick
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `html` *(required)* | — | Rendered HTML (post-JS), e.g. `document.documentElement.outerHTML`. |
-| `url` | — | Optional origin. **Never fetched**; used for pagination/gating detection only. |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; used for pagination/gating detection only. |
 | `selectors` | — | Same `include`/`exclude` shape as `extract` — applied at the normalize step so the diagnosis matches what `extract` would see. |
 | `topN` | `5` | Maximum scored candidate nodes to return (highest first); 1–20. |
 
@@ -231,7 +236,7 @@ Output shape: a single `content[0].text` entry holding the host's summary. No `s
 
 A full rendered SPA can be several MB as a string, and MCP tool args travel over JSON-RPC on stdio. Mitigations:
 
-- **Scoped capture (recommended)** — real pages are large (hundreds of KB of `outerHTML`), so capture only what you need rather than the whole document. Via chrome-devtools `evaluate_script`, grab `document.head.outerHTML` (for metadata) plus a content subtree such as `document.querySelector('article')?.outerHTML || document.querySelector('main')?.outerHTML`, and pass that to `extract` with `url`. `url` absolutizes relative links within whatever HTML is passed.
+- **Scoped capture (recommended)** — real pages are large (hundreds of KB of `outerHTML`), so capture only what you need rather than the whole document. Via chrome-devtools `evaluate_script` (with its `filePath` arg), write `document.head.outerHTML` (for metadata) plus a content subtree such as `document.querySelector('article')?.outerHTML || document.querySelector('main')?.outerHTML` to a file, then point `extract` at it via `localPath`. `baseUrl` absolutizes relative links within whatever HTML is passed.
 - **`selectors.include`** — scope to the article subtree, e.g. `"main"`, so only the relevant DOM is scored and serialized.
 - **`maxChars`** — cap the returned payload; truncation lands at a block boundary and never splits a fenced code block.
 - **`maxNodes`** — a hard cap on elements parsed (`Readability.maxElemsToParse`) for very large documents.
@@ -240,7 +245,7 @@ A full rendered SPA can be several MB as a string, and MCP tool args travel over
 
 The server exposes one MCP prompt:
 
-- **`prompts/read_url({url})`** — returns the recipe that choreographs the canonical two-tool flow for reading a live URL: a browser tool (chrome-devtools) renders the page and captures `document.documentElement.outerHTML`, then the readability `extract` tool turns that HTML into Markdown. The prompt's job is to fill the host in on the handoff (the readability server never fetches URLs); the host executes the steps. The `url` argument is carried into the recipe as origin context for `extract`.
+- **`prompts/read_url({url})`** — returns the recipe that choreographs the canonical two-tool flow for reading a live URL: a browser tool (chrome-devtools) renders the page, writes `document.documentElement.outerHTML` to a file via `evaluate_script`'s `filePath` arg, then the readability `extract` tool reads that file via `localPath` and turns it into Markdown. The prompt's job is to fill the host in on the handoff (the readability server never fetches URLs); the host executes the steps. The `url` argument is carried into the recipe as `baseUrl` (origin context) for `extract`.
 
 ## Resources (page cache)
 

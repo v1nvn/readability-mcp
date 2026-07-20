@@ -8,6 +8,7 @@ export interface StructuredData {
 }
 
 export interface Metadata {
+  readonly baseUrl?: string;
   readonly byline?: string;
   readonly canonical?: string;
   readonly estimator?: string;
@@ -19,7 +20,6 @@ export interface Metadata {
   readonly structured?: StructuredData;
   readonly title?: string;
   readonly tokenEstimate?: number;
-  readonly url?: string;
   readonly wordCount?: number;
 }
 
@@ -57,6 +57,7 @@ export interface Diagnostics {
 
 export interface ExtractionContext {
   readonly article?: null | Readonly<ReadabilityParseResult>;
+  readonly baseUrl?: string;
   readonly diagnostics?: Diagnostics;
   readonly document?: Document;
   readonly documentElementCount?: number;
@@ -66,7 +67,6 @@ export interface ExtractionContext {
   readonly readerable?: boolean;
   readonly rootSelector?: string;
   readonly sanitizedHtml?: string;
-  readonly url?: string;
   // Must be the same window the document came from — DOMPurify is bound to it.
   readonly window?: Window;
 }

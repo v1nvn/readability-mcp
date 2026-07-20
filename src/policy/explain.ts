@@ -56,11 +56,11 @@ export interface ExplainReport {
 }
 
 export interface BuildExplainOptions {
+  readonly baseUrl?: string;
   readonly html: string;
   readonly selectors?: Readonly<SelectorScope>;
   readonly snapshotMaxChars?: number;
   readonly topN?: number;
-  readonly url?: string;
 }
 
 const DEFAULT_SNAPSHOT_MAX = 4000;
@@ -120,10 +120,10 @@ export function buildExplainReport(
     selectors,
     snapshotMaxChars = DEFAULT_SNAPSHOT_MAX,
     topN = DEFAULT_TOP_N,
-    url,
+    baseUrl,
   } = options;
 
-  const { document, window } = buildDocument(html, url);
+  const { document, window } = buildDocument(html, baseUrl);
 
   // Mirror the extract pipeline's ordering: gating detection must precede
   // normalization (chrome stripping would remove the overlay), and pagination
@@ -133,7 +133,7 @@ export function buildExplainReport(
   const documentElementCount = document.querySelectorAll('*').length;
   const normalizeCounts = normalizeDocument(document);
   resolveLazyImages(document);
-  const pagination = detectPagination(document, url);
+  const pagination = detectPagination(document, baseUrl);
   applySelectors(document, selectors);
 
   const snapshot = truncateSnapshot(document.body.innerHTML, snapshotMaxChars);

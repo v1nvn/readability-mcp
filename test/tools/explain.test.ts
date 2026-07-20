@@ -3,7 +3,7 @@ import {
   type BuildExplainOptions,
   type ExplainReport,
 } from '../../src/policy/explain.js';
-import { explain, explainHandler } from '../../src/tools/explain.js';
+import { explainFromHtml, explainHandler } from '../../src/tools/explain.js';
 
 // Modeled on a docs page: a <main><article> with multi-paragraph prose flanked
 // by nav / aside / footer chrome. Readability should score the article far
@@ -32,7 +32,7 @@ function reportFor(
   html: string,
   overrides?: Partial<BuildExplainOptions>,
 ): ExplainReport {
-  return buildExplainReport({ html, url: ORIGIN, ...overrides });
+  return buildExplainReport({ html, baseUrl: ORIGIN, ...overrides });
 }
 
 describe('explain report (buildExplainReport)', () => {
@@ -115,7 +115,7 @@ describe('explain report (buildExplainReport)', () => {
 
 describe('explain tool handler', () => {
   it('returns structured content validating against the output schema', () => {
-    const result = explain({ html: DOCS_HTML, url: ORIGIN });
+    const result = explainFromHtml({ html: DOCS_HTML, baseUrl: ORIGIN });
     expect(result.isError).toBeFalsy();
     const sc = result.structuredContent as Record<string, unknown>;
     expect(sc.schemaVersion).toBe(1);

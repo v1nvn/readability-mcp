@@ -5,8 +5,13 @@ import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
 import { applySelectors, normalizeDocument } from '../pipeline/normalize.js';
 import { resolveOutline } from '../policy/outline.js';
+import { readHtmlFile } from './html-source.js';
 import { outlineOutputShape } from './output-schema.js';
-import { outlineInputSchema, outlineInputShape } from './schemas.js';
+import {
+  type OutlineFromHtmlInput,
+  outlineInputSchema,
+  outlineInputShape,
+} from './schemas.js';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -24,10 +29,16 @@ function renderOutlineToc(
 }
 
 export function outlineDocument(rawArgs: unknown): CallToolResult {
-  const args = outlineInputSchema.parse(rawArgs);
-  const { html, url, selectors } = args;
+  const { localPath, ...rest } = outlineInputSchema.parse(rawArgs);
+  return outlineDocumentFromHtml({ html: readHtmlFile(localPath), ...rest });
+}
 
-  const { document } = buildDocument(html, url);
+export function outlineDocumentFromHtml(
+  input: Readonly<OutlineFromHtmlInput>,
+): CallToolResult {
+  const { html, baseUrl, selectors } = input;
+
+  const { document } = buildDocument(html, baseUrl);
   normalizeDocument(document);
   applySelectors(document, selectors);
   const outline = resolveOutline(document);
@@ -36,7 +47,7 @@ export function outlineDocument(rawArgs: unknown): CallToolResult {
     document.title.trim() ||
     document.querySelector('h1')?.textContent.replace(/\s+/g, ' ').trim() ||
     undefined;
-  const metadata = { title, url };
+  const metadata = { title, baseUrl };
 
   const content = renderOutlineToc(outline);
   return {
@@ -50,7 +61,7 @@ export function outlineDocument(rawArgs: unknown): CallToolResult {
   };
 }
 
-export const OUTLINE_TOOL_DESCRIPTION = `Return the document outline (h1-h6 headings with stable anchor ids) of already-rendered (post-JavaScript) HTML as a cheap pre-check before full extraction. No Readability scoring, no Turndown, no sanitization — a pure heading walk. The server fetches nothing: \`html\` is the only source, and \`url\` is origin context only (never fetched).`;
+export const OUTLINE_TOOL_DESCRIPTION = `Return the document outline (h1-h6 headings with stable anchor ids) of already-rendered (post-JavaScript) HTML as a cheap pre-check before full extraction. No Readability scoring, no Turndown, no sanitization — a pure heading walk. The server fetches nothing: \`localPath\` is the only source, and \`baseUrl\` is origin context only (never fetched).`;
 
 export function outlineHandler(args: unknown): CallToolResult {
   try {

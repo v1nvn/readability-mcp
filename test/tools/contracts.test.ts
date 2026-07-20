@@ -1,10 +1,13 @@
 import {
-  extractMetadataDocument,
+  extractMetadataDocumentFromHtml,
   extractMetadataHandler,
 } from '../../src/tools/extract_metadata.js';
-import { extractArticle, extractHandler } from '../../src/tools/extract.js';
 import {
-  htmlToMarkdown,
+  extractArticleFromHtml,
+  extractHandler,
+} from '../../src/tools/extract.js';
+import {
+  htmlToMarkdownFromHtml,
   htmlToMarkdownHandler,
 } from '../../src/tools/html_to_markdown.js';
 import {
@@ -12,7 +15,10 @@ import {
   outputSchema,
   outlineOutput,
 } from '../../src/tools/output-schema.js';
-import { outlineDocument, outlineHandler } from '../../src/tools/outline.js';
+import {
+  outlineDocumentFromHtml,
+  outlineHandler,
+} from '../../src/tools/outline.js';
 
 const SPA_HTML =
   '<html><head><title>Post</title></head><body><article><h1>Title</h1>' +
@@ -28,7 +34,10 @@ describe('extract tool contracts', () => {
   });
 
   it('validates structuredContent against the output schema', () => {
-    const result = extractArticle({ html: SPA_HTML, url: 'https://x.example/' });
+    const result = extractArticleFromHtml({
+      html: SPA_HTML,
+      baseUrl: 'https://x.example/',
+    });
     expect(result.isError).toBeFalsy();
     const parsed = outputSchema.parse(result.structuredContent);
     expect(parsed.content.length).toBeGreaterThan(0);
@@ -42,9 +51,9 @@ describe('html_to_markdown tool contracts', () => {
   });
 
   it('validates structuredContent against the output schema (fallbackUsed=true, fragment)', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html: '<h2>Heading</h2><p>some fragment text here</p>',
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     expect(result.isError).toBeFalsy();
     const parsed = outputSchema.parse(result.structuredContent);
@@ -54,9 +63,9 @@ describe('html_to_markdown tool contracts', () => {
   });
 
   it('emits tokenEstimate and estimator in structuredContent.metadata', () => {
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html: '<h2>Heading</h2><p>some fragment text here</p>',
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const metadata = result.structuredContent?.metadata as
       | { estimator?: string; tokenEstimate?: number }
@@ -73,9 +82,9 @@ describe('outline tool contracts', () => {
   });
 
   it('validates structuredContent against the outline output schema', () => {
-    const result = outlineDocument({
+    const result = outlineDocumentFromHtml({
       html: '<h1>Title</h1><h2>Section</h2>',
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     expect(result.isError).toBeFalsy();
     const parsed = outlineOutput.parse(result.structuredContent);
@@ -90,14 +99,14 @@ describe('extract_metadata tool contracts', () => {
   });
 
   it('validates structuredContent against the extract_metadata output schema and surfaces canonical', () => {
-    const result = extractMetadataDocument({
+    const result = extractMetadataDocumentFromHtml({
       html: '<html><head><title>X</title><link rel="canonical" href="https://x.example/c"></head><body></body></html>',
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     expect(result.isError).toBeFalsy();
     const parsed = extractMetadataOutput.parse(result.structuredContent);
     expect(parsed.metadata.canonical).toBe('https://x.example/c');
     expect(parsed.metadata.title).toBe('X');
-    expect(parsed.metadata.url).toBe('https://x.example/');
+    expect(parsed.metadata.baseUrl).toBe('https://x.example/');
   });
 });

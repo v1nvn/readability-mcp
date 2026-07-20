@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { outlineDocument } from '../../../src/tools/outline.js';
+import { outlineDocumentFromHtml } from '../../../src/tools/outline.js';
 import type { OutlineStructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -11,7 +11,7 @@ const goldenPath = join(here, 'saved.golden.json');
 const pageUrl = 'https://docs.example.com/api';
 
 function payloadText(
-  result: ReturnType<typeof outlineDocument>,
+  result: ReturnType<typeof outlineDocumentFromHtml>,
 ): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
@@ -20,7 +20,7 @@ function payloadText(
 describe('golden: outline saved.html', () => {
   it('yields the expected outline tree', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = outlineDocument({ html, url: pageUrl });
+    const result = outlineDocumentFromHtml({ html, baseUrl: pageUrl });
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as OutlineStructuredContent;
 

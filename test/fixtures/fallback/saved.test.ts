@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractArticle } from '../../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../../src/tools/extract.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturePath = join(here, 'saved.html');
 const pageUrl = 'https://aurora.example.com/';
 
-function payloadText(result: ReturnType<typeof extractArticle>): string {
+function payloadText(result: ReturnType<typeof extractArticleFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -17,7 +17,7 @@ function payloadText(result: ReturnType<typeof extractArticle>): string {
 describe('fallback cascade: text-free splash page', () => {
   it('falls back to a cascade selector and yields non-empty content', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl, format: 'markdown' });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl, format: 'markdown' });
 
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as StructuredContent;

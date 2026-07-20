@@ -1,4 +1,4 @@
-import { extractList } from '../../src/tools/extract_list.js';
+import { extractListFromHtml } from '../../src/tools/extract_list.js';
 import { extractListOutput } from '../../src/tools/output-schema.js';
 
 const ORIGIN = 'https://example.com/';
@@ -22,7 +22,7 @@ describe('extract_list tool', () => {
       '<li><a href="/b3">Beta Three</a></li>' +
       '</ul></div>';
 
-    const unscoped = extractList({ html, url: ORIGIN });
+    const unscoped = extractListFromHtml({ html, baseUrl: ORIGIN });
     const unscopedParsed = extractListOutput.parse(unscoped.structuredContent);
     expect(unscopedParsed.diagnostics.detected).toBe(true);
     expect(unscopedParsed.items.map(i => i.url)).toEqual(
@@ -39,9 +39,9 @@ describe('extract_list tool', () => {
       ),
     ).toBe(true);
 
-    const scoped = extractList({
+    const scoped = extractListFromHtml({
       html,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selectors: { include: '#feed-b' },
     });
     const scopedParsed = extractListOutput.parse(scoped.structuredContent);

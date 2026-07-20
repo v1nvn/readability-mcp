@@ -1,5 +1,5 @@
 import { buildDocument } from '../../src/pipeline/dom.js';
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 import type { StructuredContent } from '../../src/tools/output-schema.js';
 
 export interface FixtureMetrics {
@@ -20,7 +20,7 @@ export interface ExtractionSample {
   readonly metrics: FixtureMetrics;
 }
 
-function payloadText(result: ReturnType<typeof extractArticle>): string {
+function payloadText(result: ReturnType<typeof extractArticleFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -39,7 +39,7 @@ function countTables(markdown: string): number {
 export function sampleExtraction(html: string, url: string): ExtractionSample {
   const inputNodes = buildDocument(html, url).document.querySelectorAll('*').length;
 
-  const result = extractArticle({ format: 'markdown', html, url });
+  const result = extractArticleFromHtml({ format: 'markdown', html, baseUrl: url });
   const markdown = payloadText(result);
   const diagnostics = (result.structuredContent as StructuredContent).diagnostics;
 

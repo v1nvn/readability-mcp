@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractArticle } from '../../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../../src/tools/extract.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,7 +12,7 @@ const pageUrl = 'https://shop.example.com/audio/acme-wireless-headphones';
 describe('product fixture: JSON-LD Product surfaces as metadata.structured', () => {
   it('populates structured with the Product node and preserves offers/rating', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl });
 
     expect(result.isError).toBeFalsy();
     const structured = result.structuredContent as StructuredContent;
@@ -38,7 +38,7 @@ describe('product fixture: JSON-LD Product surfaces as metadata.structured', () 
 
   it('emits the product prose as the article body, not the JSON-LD block', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = extractArticle({ html, url: pageUrl });
+    const result = extractArticleFromHtml({ html, baseUrl: pageUrl });
     const first = result.content[0];
     const text = first && 'text' in first ? first.text : '';
     expect(text).toContain('Acme Wireless Headphones');

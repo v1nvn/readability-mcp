@@ -6,7 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 
-import { extractArticle } from '../../src/tools/extract.js';
+import { extractArticleFromHtml } from '../../src/tools/extract.js';
 import { outputSchema } from '../../src/tools/output-schema.js';
 import {
   normalizedHashOf,
@@ -83,7 +83,7 @@ const PAGE_B = `<html><head>
 </article></body></html>`;
 
 function readDiagnostics(
-  result: ReturnType<typeof extractArticle>,
+  result: ReturnType<typeof extractArticleFromHtml>,
 ): {
   cache?: { hit: boolean; normalizedHash: string; originalHash: string };
 } {
@@ -91,33 +91,33 @@ function readDiagnostics(
   return parsed.diagnostics;
 }
 
-function payloadOf(result: ReturnType<typeof extractArticle>): string {
+function payloadOf(result: ReturnType<typeof extractArticleFromHtml>): string {
   return outputSchema.parse(result.structuredContent).content;
 }
 
 describe('extract cache:true — diagnostics.cache', () => {
   it('is absent when cache is not requested (goldens unaffected)', () => {
     resetCache();
-    const result = extractArticle({ html: PAGE_A, url: 'https://x.example/' });
+    const result = extractArticleFromHtml({ html: PAGE_A, baseUrl: 'https://x.example/' });
     const diagnostics = readDiagnostics(result);
     expect(diagnostics.cache).toBeUndefined();
   });
 
   it('reports hit:false on first call, hit:true on the second (same html)', () => {
     resetCache();
-    const first = extractArticle({
+    const first = extractArticleFromHtml({
       cache: true,
       html: PAGE_A,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const firstDiag = readDiagnostics(first);
     expect(firstDiag.cache).toMatchObject({ hit: false });
     expect(typeof firstDiag.cache?.normalizedHash).toBe('string');
 
-    const second = extractArticle({
+    const second = extractArticleFromHtml({
       cache: true,
       html: PAGE_A,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const secondDiag = readDiagnostics(second);
     expect(secondDiag.cache).toMatchObject({ hit: true });
@@ -129,15 +129,15 @@ describe('extract cache:true — diagnostics.cache', () => {
 
   it('hits across re-renders that differ only by nonce / CSP / data-v hash', () => {
     resetCache();
-    const a = extractArticle({
+    const a = extractArticleFromHtml({
       cache: true,
       html: PAGE_A,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
-    const b = extractArticle({
+    const b = extractArticleFromHtml({
       cache: true,
       html: PAGE_B,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const aDiag = readDiagnostics(a).cache;
     const bDiag = readDiagnostics(b).cache;
@@ -152,16 +152,16 @@ describe('extract cache:true — diagnostics.cache', () => {
 
   it('misses when output-affecting args differ (format:markdown vs format:html)', () => {
     resetCache();
-    const md = extractArticle({
+    const md = extractArticleFromHtml({
       cache: true,
       html: PAGE_A,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
       format: 'markdown',
     });
-    const htmlResult = extractArticle({
+    const htmlResult = extractArticleFromHtml({
       cache: true,
       html: PAGE_A,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
       format: 'html',
     });
     const mdDiag = readDiagnostics(md).cache;
@@ -228,10 +228,10 @@ describe('MCP resources/list + resources/read', () => {
   it('lists cached entries after extract cache:true, and reads them back', async () => {
     resetCache();
     // Populate the cache via the extract API.
-    const result = extractArticle({
+    const result = extractArticleFromHtml({
       cache: true,
       html: PAGE_A,
-      url: 'https://x.example/',
+      baseUrl: 'https://x.example/',
     });
     const expectedText = payloadOf(result);
 

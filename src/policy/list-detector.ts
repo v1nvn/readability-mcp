@@ -328,7 +328,7 @@ function notDetected(note: string): ListDetectionResult {
 // per-item score breaks remaining ties.
 export function detectList(
   document: Document,
-  url?: string,
+  baseUrl?: string,
 ): ListDetectionResult {
   for (const el of document.querySelectorAll(CHROME_SELECTOR)) {
     el.remove();
@@ -337,7 +337,7 @@ export function detectList(
     el.remove();
   }
 
-  const candidates = collectCandidates(document, url);
+  const candidates = collectCandidates(document, baseUrl);
   if (candidates.length === 0) {
     return notDetected(
       'not a list: no repeated item structure with links (≥3 same-shape siblings each carrying an anchor, outside nav/header/footer/aside)',

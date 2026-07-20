@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { htmlToMarkdown } from '../../../src/tools/html_to_markdown.js';
+import { htmlToMarkdownFromHtml } from '../../../src/tools/html_to_markdown.js';
 import type { StructuredContent } from '../../../src/tools/output-schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturePath = join(here, 'saved.html');
 const pageUrl = 'https://example.com/blog/lazy';
 
-function payloadText(result: ReturnType<typeof htmlToMarkdown>): string {
+function payloadText(result: ReturnType<typeof htmlToMarkdownFromHtml>): string {
   const first = result.content[0];
   return first && 'text' in first ? first.text : '';
 }
@@ -17,9 +17,9 @@ function payloadText(result: ReturnType<typeof htmlToMarkdown>): string {
 describe('lazy-image resolution end-to-end', () => {
   it('populates diagnostics.imagesResolved and renders the real URLs', () => {
     const html = readFileSync(fixturePath, 'utf8');
-    const result = htmlToMarkdown({
+    const result = htmlToMarkdownFromHtml({
       html,
-      url: pageUrl,
+      baseUrl: pageUrl,
       format: 'markdown',
     });
 

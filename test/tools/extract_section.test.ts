@@ -1,4 +1,7 @@
-import { extractSection, extractSectionHandler } from '../../src/tools/extract_section.js';
+import {
+  extractSectionFromHtml,
+  extractSectionHandler,
+} from '../../src/tools/extract_section.js';
 import { outputSchema } from '../../src/tools/output-schema.js';
 
 const ORIGIN = 'https://example.com/docs';
@@ -11,9 +14,9 @@ const FIXTURE_HTML =
 
 describe('extract_section tool', () => {
   it('heading mode scopes to the matched section and skips siblings', () => {
-    const result = extractSection({
+    const result = extractSectionFromHtml({
       html: FIXTURE_HTML,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       heading: 'Authentication',
     });
     expect(result.isError).toBeFalsy();
@@ -32,7 +35,11 @@ describe('extract_section tool', () => {
       '<div class="markdown-heading"><h2>Contributing</h2><a href="#contributing">#</a></div>' +
       '<p>Please see our Contributing document.</p>' +
       '</article></main>';
-    const result = extractSection({ html, url: ORIGIN, heading: 'Security' });
+    const result = extractSectionFromHtml({
+      html,
+      baseUrl: ORIGIN,
+      heading: 'Security',
+    });
     expect(result.isError).toBeFalsy();
     const parsed = outputSchema.parse(result.structuredContent);
     expect(parsed.content).toContain('Use a sanitizer like DOMPurify');
@@ -40,9 +47,9 @@ describe('extract_section tool', () => {
   });
 
   it('selector mode passes straight through to selectors.include', () => {
-    const result = extractSection({
+    const result = extractSectionFromHtml({
       html: FIXTURE_HTML,
-      url: ORIGIN,
+      baseUrl: ORIGIN,
       selector: '#auth',
     });
     expect(result.isError).toBeFalsy();
