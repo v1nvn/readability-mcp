@@ -2,15 +2,15 @@
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json yarn.lock .yarnrc.yml ./
+RUN corepack enable && yarn install --immutable
 COPY . .
-RUN npm run build
+RUN yarn build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+COPY package.json yarn.lock .yarnrc.yml ./
+RUN corepack enable && yarn workspaces focus --all --production && yarn cache clean
 COPY --from=build /app/dist ./dist
 ENV NODE_ENV=production
 USER node

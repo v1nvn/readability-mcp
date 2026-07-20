@@ -5,25 +5,25 @@ help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage: make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install JS dependencies
-	npm ci
+	yarn install --immutable
 
 build: ## Build (vite)
-	npm run build
+	yarn build
 
 typecheck: ## Typecheck (tsc --noEmit)
-	npm run typecheck
+	yarn typecheck
 
 test: ## Run the vitest suite
-	npm test
+	yarn test
 
 test-update-goldens: ## Regenerate golden markdown outputs
-	npm run test:update-goldens
+	yarn test:update-goldens
 
 lint: ## Lint (eslint)
-	npm run lint
+	yarn lint
 
 format: ## Format (prettier --write)
-	npx prettier . --write
+	yarn prettier . --write
 
 run: ## Run the MCP server on stdio
 	node dist/index.js
