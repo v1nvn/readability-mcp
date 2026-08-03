@@ -5,6 +5,7 @@ import {
   renderTableCsv,
   renderTableGfm,
   renderTableJson,
+  resolveHeaderKeys,
 } from '../../src/policy/tables.js';
 
 function table(html: string): Element {
@@ -357,5 +358,169 @@ describe('policy.tables three formats from one matrix', () => {
       Person: 'Bob',
       Notes: '"quoted"',
     });
+  });
+});
+
+describe('policy.tables resolveHeaderKeys', () => {
+  it('reproduces header text for a simple headered table', () => {
+    const t = table(
+      '<table><thead><tr><th>A</th><th>B</th></tr></thead>' +
+        '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual(['A', 'B']);
+  });
+
+  it('keeps column_N when no structural signal exists', () => {
+    // Mirrors the MoneyControl bid/ask shape: th, gap, th, gap — no colspan,
+    // no aria-label. The honest structural answer is still column_N.
+    const t = table(
+      '<table><thead><tr><th>BUY</th><th></th><th>SELL</th><th></th></tr></thead>' +
+        '<tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual([
+      'BUY',
+      'column_1',
+      'SELL',
+      'column_3',
+    ]);
+  });
+
+  it('uses aria-label from the first data-row cell', () => {
+    const t = table(
+      '<table><thead><tr><th>BUY</th><th></th></tr></thead>' +
+        '<tbody><tr><td>100</td><td aria-label="Price">5</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual(['BUY', 'Price']);
+  });
+
+  it('uses title then data-label when aria-label is absent', () => {
+    const t = table(
+      '<table><thead><tr><th></th><th></th></tr></thead>' +
+        '<tbody><tr><td title="X">1</td><td data-label="Y">2</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual(['X', 'Y']);
+  });
+
+  it('pairs a colspan parent with a second header row', () => {
+    const t = table(
+      '<table><thead>' +
+        '<tr><th colspan="2">BUY</th><th colspan="2">SELL</th></tr>' +
+        '<tr><th>Price</th><th>Qty</th><th>Price</th><th>Qty</th></tr>' +
+        '</thead><tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual([
+      'buy_price',
+      'buy_qty',
+      'sell_price',
+      'sell_qty',
+    ]);
+  });
+
+  it('pairs a colspan parent with a second header row (rowspan-occupied cells in the sub-row)', () => {
+    // Notes spans both header rows; its column has no sub-label and keeps the
+    // parent text. Person spans two columns; sub-row supplies Name/Age.
+    const t = table(
+      '<table><thead>' +
+        '<tr><th colspan="2">Person</th><th rowspan="2">Notes</th></tr>' +
+        '<tr><th>Name</th><th>Age</th></tr>' +
+        '</thead><tbody><tr><td>a</td><td>1</td><td>n</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual([
+      'person_name',
+      'person_age',
+      'Notes',
+    ]);
+  });
+
+  it('falls back to parent_index when a colspan covers a headerless column with no sub-row', () => {
+    // No second header row; origin keeps its text, the headerless sibling is
+    // named by its 1-based position under the parent.
+    const t = table(
+      '<table><thead><tr><th colspan="2">BUY</th></tr></thead>' +
+        '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual(['BUY', 'buy_2']);
+  });
+
+  it('slugifies parent and sub labels', () => {
+    const t = table(
+      '<table><thead>' +
+        '<tr><th colspan="2">Order Type!</th></tr>' +
+        '<tr><th>Unit Price</th><th>Qty.</th></tr>' +
+        '</thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual([
+      'order_type_unit_price',
+      'order_type_qty',
+    ]);
+  });
+
+  it('prefers a td aria-label over colspan pairing', () => {
+    // No sub-header row, so matrix row 1 is the data row carrying aria-label;
+    // without that label col 1 would fall through to buy_2.
+    const t = table(
+      '<table><thead><tr><th colspan="2">BUY</th></tr></thead>' +
+        '<tbody><tr><td>1</td><td aria-label="Size">2</td></tr></tbody></table>',
+    );
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual(['BUY', 'Size']);
+  });
+
+  it('returns [] for an empty matrix', () => {
+    const t = table('<table></table>');
+    expect(resolveHeaderKeys(t, parseTableMatrix(t))).toEqual([]);
+  });
+});
+
+describe('policy.tables renderTableJson with keys', () => {
+  it('honours caller-supplied keys', () => {
+    const matrix = [
+      ['', ''],
+      ['Alice', '30'],
+    ];
+    const json = renderTableJson(matrix, ['Name', 'Age']);
+    expect(JSON.parse(json)).toEqual([{ Name: 'Alice', Age: '30' }]);
+  });
+
+  it('pads short keys with column_N and ignores extra keys', () => {
+    const matrix = [
+      ['', '', ''],
+      ['a', 'b', 'c'],
+    ];
+    const json = renderTableJson(matrix, ['Only']);
+    expect(JSON.parse(json)).toEqual([
+      { Only: 'a', column_1: 'b', column_2: 'c' },
+    ]);
+  });
+
+  it('falls back to headerKeys when keys is omitted', () => {
+    const matrix = [
+      ['', 'City'],
+      ['Alice', 'NYC'],
+    ];
+    expect(JSON.parse(renderTableJson(matrix))).toEqual([
+      { column_0: 'Alice', City: 'NYC' },
+    ]);
+  });
+});
+
+describe('policy.tables renderTable passes keys to json only', () => {
+  const matrix = [
+    ['', ''],
+    ['a', 'b'],
+  ];
+  const keys = ['Alpha', 'Beta'];
+
+  it('threads keys through to json', () => {
+    expect(renderTable(matrix, 'json', keys)).toBe(
+      renderTableJson(matrix, keys),
+    );
+  });
+
+  it('ignores keys for gfm (positional)', () => {
+    expect(renderTable(matrix, 'gfm', keys)).toBe(renderTableGfm(matrix));
+  });
+
+  it('ignores keys for csv (positional)', () => {
+    expect(renderTable(matrix, 'csv', keys)).toBe(renderTableCsv(matrix));
   });
 });

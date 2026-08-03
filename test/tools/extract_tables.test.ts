@@ -64,15 +64,17 @@ describe('extract_tables tool', () => {
       string
     >[];
     // Row 0 is the JSON header; rows 1-3 are data (including the second HTML
-    // header row, which the row-0-keyed IR cannot distinguish from data).
+    // header row, which the row-0-keyed IR cannot distinguish from data). The
+    // colspan parent "Person" is paired with the sub-header (Name/Age), so the
+    // headerless column under it resolves to person_age rather than column_1.
     expect(records).toHaveLength(3);
     expect(records[1]).toMatchObject({
-      Person: 'Alice',
-      column_1: '30',
+      person_name: 'Alice',
+      person_age: '30',
       Notes: 'hello, world',
     });
     expect(records[2]).toMatchObject({
-      Person: 'Bob',
+      person_name: 'Bob',
       Notes: '"quoted"',
     });
   });

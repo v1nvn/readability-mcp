@@ -4,7 +4,11 @@ import { toErrorResult } from '../errors.js';
 import { logger } from '../logger.js';
 import { buildDocument } from '../pipeline/dom.js';
 import { applySelectors } from '../pipeline/normalize.js';
-import { parseTableMatrix, renderTable } from '../policy/tables.js';
+import {
+  parseTableMatrix,
+  renderTable,
+  resolveHeaderKeys,
+} from '../policy/tables.js';
 import { readHtmlFile } from './html-source.js';
 import { extractTablesOutputShape } from './output-schema.js';
 import {
@@ -54,7 +58,9 @@ export function extractTablesFromHtml(
     if (matrix.length === 0) {
       continue;
     }
-    const markdown = renderTable(matrix, format);
+    const keys =
+      format === 'json' ? resolveHeaderKeys(table, matrix) : undefined;
+    const markdown = renderTable(matrix, format, keys);
     tables.push({
       index,
       rows: matrix.length,

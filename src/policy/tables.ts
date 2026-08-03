@@ -152,30 +152,202 @@ function headerKeys(header: readonly string[]): string[] {
   return header.map((cell, i) => (cell === '' ? `column_${i}` : cell));
 }
 
-export function renderTableJson(matrix: string[][]): string {
+// Parallel to parseTableMatrix but tracks the originating cell element at each
+// grid position so header-key resolution can read td/th attributes the text
+// matrix discards. `null` at positions filled by a span (no origin cell).
+function buildCellGrid(table: Element): (Element | null)[][] {
+  const rows = collectRows(table);
+  if (rows.length === 0) {
+    return [];
+  }
+  const grid: (Element | null)[][] = [];
+  const occupied: boolean[][] = [];
+  let maxCols = 0;
+
+  for (let r = 0; r < rows.length; r++) {
+    while (grid.length <= r) {
+      grid.push([]);
+      occupied.push([]);
+    }
+    const rowCells = grid[r];
+    const rowOccupied = occupied[r];
+
+    let col = 0;
+    for (const cell of cellsOf(rows[r])) {
+      while (rowOccupied[col]) {
+        col++;
+      }
+      const rowspan = spanOf(cell, 'rowspan');
+      const colspan = spanOf(cell, 'colspan');
+      rowCells[col] = cell;
+      rowOccupied[col] = true;
+      for (let dr = 0; dr < rowspan; dr++) {
+        for (let dc = 0; dc < colspan; dc++) {
+          if (dr === 0 && dc === 0) {
+            continue;
+          }
+          const rr = r + dr;
+          while (grid.length <= rr) {
+            grid.push([]);
+            occupied.push([]);
+          }
+          const occ = occupied[rr];
+          while (occ.length <= col + dc) {
+            occ.push(false);
+            grid[rr].push(null);
+          }
+          occ[col + dc] = true;
+        }
+      }
+      col += colspan;
+      if (col > maxCols) {
+        maxCols = col;
+      }
+    }
+  }
+
+  const dense: (Element | null)[][] = [];
+  for (const row of grid) {
+    dense.push(Array.from({ length: maxCols }, (_, i) => row[i] ?? null));
+  }
+  return dense;
+}
+
+function isHeaderRow(tr: Element): boolean {
+  const cells = cellsOf(tr);
+  return cells.length > 0 && cells.every(c => c.tagName === 'TH');
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function readCellLabel(cell: Element): null | string {
+  return (
+    cell.getAttribute('aria-label') ??
+    cell.getAttribute('title') ??
+    cell.getAttribute('data-label')
+  );
+}
+
+export function resolveHeaderKeys(
+  table: Element,
+  matrix: string[][],
+): string[] {
+  if (matrix.length === 0) {
+    return [];
+  }
+  const width = matrix[0].length;
+  const keys = headerKeys(matrix[0]);
+
+  const rows = collectRows(table);
+  if (rows.length === 0) {
+    return keys;
+  }
+
+  const cellGrid = buildCellGrid(table);
+
+  // Headerless columns lose their name without a th; recover from a colspan
+  // parent in row 0, falling back to the position under that parent.
+  const parents: string[] = Array.from({ length: width }, () => '');
+  const parentChildren = new Map<string, number[]>();
+  {
+    let col = 0;
+    for (const cell of cellsOf(rows[0])) {
+      const colspan = spanOf(cell, 'colspan');
+      const text = cellText(cell);
+      if (colspan > 1 && text) {
+        const slug = slugify(text);
+        const kids: number[] = [];
+        for (let dc = 0; dc < colspan && col + dc < width; dc++) {
+          parents[col + dc] = slug;
+          kids.push(col + dc);
+        }
+        parentChildren.set(slug, kids);
+      }
+      col += colspan;
+    }
+  }
+
+  const hasSubRow = rows.length > 1 && isHeaderRow(rows[1]);
+
+  for (let c = 0; c < width; c++) {
+    const dataCell = cellGrid[1]?.[c];
+    if (dataCell) {
+      const label = readCellLabel(dataCell);
+      if (label) {
+        keys[c] = label;
+        continue;
+      }
+    }
+
+    const parent = parents[c];
+    if (!parent) {
+      continue;
+    }
+
+    if (hasSubRow) {
+      const sub = matrix[1][c] ? slugify(matrix[1][c]) : '';
+      if (sub) {
+        keys[c] = `${parent}_${sub}`;
+        continue;
+      }
+    }
+
+    if (matrix[0][c] === '') {
+      const kids = parentChildren.get(parent);
+      const idx = kids ? kids.indexOf(c) + 1 : c;
+      keys[c] = `${parent}_${idx}`;
+    }
+  }
+  return keys;
+}
+
+function resolveJsonKeys(
+  matrix: string[][],
+  keys: readonly string[] | undefined,
+): string[] {
+  const width = matrix[0].length;
+  if (!keys) {
+    return headerKeys(matrix[0]);
+  }
+  return Array.from({ length: width }, (_, i) => keys[i] ?? `column_${i}`);
+}
+
+export function renderTableJson(
+  matrix: string[][],
+  keys?: readonly string[],
+): string {
   if (matrix.length < 2) {
     return '[]';
   }
-  const keys = headerKeys(matrix[0]);
+  const resolved = resolveJsonKeys(matrix, keys);
   const records: Record<string, string>[] = [];
   for (let r = 1; r < matrix.length; r++) {
     const row = matrix[r];
     const record: Record<string, string> = {};
-    for (let c = 0; c < keys.length; c++) {
-      record[keys[c]] = row[c] ?? '';
+    for (let c = 0; c < resolved.length; c++) {
+      record[resolved[c]] = row[c] ?? '';
     }
     records.push(record);
   }
   return JSON.stringify(records, null, 2);
 }
 
-export function renderTable(matrix: string[][], format: TableFormat): string {
+export function renderTable(
+  matrix: string[][],
+  format: TableFormat,
+  keys?: readonly string[],
+): string {
   switch (format) {
     case 'csv':
       return renderTableCsv(matrix);
     case 'gfm':
       return renderTableGfm(matrix);
     case 'json':
-      return renderTableJson(matrix);
+      return renderTableJson(matrix, keys);
   }
 }
