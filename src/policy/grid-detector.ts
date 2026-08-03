@@ -1,4 +1,10 @@
 import { isElement } from '../pipeline/dom.js';
+import {
+  CONTAINER_TAGS,
+  describeSelector,
+  shapeKey,
+  stripLandmarkChrome,
+} from './sibling-scan.js';
 
 export interface GridRow {
   readonly cells: readonly string[];
@@ -27,63 +33,6 @@ const MIN_ROWS = 3;
 const HIGH_CONF_ROWS = 6;
 const MIN_CELLS_PER_ROW = 2;
 
-// Same wrapper levels the list detector scans. A repeating row group lives in
-// one of these (a <div class="grid">, a <tbody>, a <ul> of <li> rows). Kept as
-// a local copy rather than imported: list-detector's set is a private constant
-// and the two detectors score different child shapes (navigation anchors vs
-// data cells), so a shared helper would couple unrelated heuristics.
-const CONTAINER_TAGS = new Set([
-  'ARTICLE',
-  'DIV',
-  'MAIN',
-  'OL',
-  'SECTION',
-  'TABLE',
-  'TBODY',
-  'UL',
-]);
-
-// Same chrome strip as the list detector. Without it, an article's <nav> or
-// footer could host a same-shape sibling group of short cells and false-
-// positive as a grid.
-const CHROME_SELECTOR =
-  'nav, header, footer, aside, [role="navigation"], [role="banner"], ' +
-  '[role="contentinfo"], [role="complementary"], [role="search"], ' +
-  '[role="menu"], [role="menubar"]';
-
-// Composite of tag + sorted class signature so a row group splits from its
-// siblings when their shape differs (a header row vs data rows, or two grids
-// with different column layouts). Local twin of list-detector's shapeKey; the
-// grid detector keys on data cells, not anchors, so the two stay independent.
-function shapeKey(el: Element): string {
-  const raw = el.getAttribute('class');
-  if (!raw) {
-    return el.tagName;
-  }
-  const normalized = raw.trim().split(/\s+/).sort().join(' ');
-  return normalized ? `${el.tagName}|${normalized}` : el.tagName;
-}
-
-// tag#id.class hint for the winning container. Best-effort, not a unique
-// locator — mirrors list-detector's describeSelector so diagnostics read the
-// same across the two detectors.
-function describeSelector(el: Element): string {
-  const parts = [el.tagName.toLowerCase()];
-  const id = el.getAttribute('id');
-  if (id) {
-    parts.push(`#${id}`);
-  }
-  const cls = el.getAttribute('class');
-  if (cls) {
-    for (const token of cls.trim().split(/\s+/)) {
-      if (token) {
-        parts.push(`.${token}`);
-      }
-    }
-  }
-  return parts.join('');
-}
-
 function cellText(cell: Element): string {
   return cell.textContent.replace(/\s+/g, ' ').trim();
 }
@@ -105,14 +54,11 @@ function notDetected(note: string): GridDetectionResult {
   };
 }
 
-function confidenceFor(rowCount: number, minRows: number): GridConfidence {
-  if (rowCount >= HIGH_CONF_ROWS) {
-    return 'high';
-  }
-  if (rowCount >= minRows) {
-    return 'medium';
-  }
-  return 'low';
+// buildResult is only ever reached with rowCount >= minRows (both modes gate on
+// it first), so confidence is `high` past HIGH_CONF_ROWS and `medium` otherwise.
+// The `low` value comes only from notDetected().
+function confidenceFor(rowCount: number): GridConfidence {
+  return rowCount >= HIGH_CONF_ROWS ? 'high' : 'medium';
 }
 
 interface GridCandidate {
@@ -131,7 +77,6 @@ function buildResult(
   raggedRows: readonly string[][],
   rowTag: string,
   containerSelector: string,
-  minRows: number,
   selectorHint?: string,
 ): GridDetectionResult {
   let maxCols = 0;
@@ -153,7 +98,7 @@ function buildResult(
   }));
   const where = containerSelector || selectorHint || 'document';
   return {
-    confidence: confidenceFor(rowCount, minRows),
+    confidence: confidenceFor(rowCount),
     containerSelector,
     detected: true,
     rowCount,
@@ -179,16 +124,11 @@ function detectSelectorMode(
   const rows = rowEls.map(row =>
     Array.from(row.querySelectorAll(cellSelector)).map(cellText),
   );
-  return buildResult(rows, rowEls[0].tagName, '', minRows, rowSelector);
+  return buildResult(rows, rowEls[0].tagName, '', rowSelector);
 }
 
 function detectAuto(document: Document, minRows: number): GridDetectionResult {
-  for (const el of document.querySelectorAll(CHROME_SELECTOR)) {
-    el.remove();
-  }
-  for (const el of document.querySelectorAll('script, style, template')) {
-    el.remove();
-  }
+  stripLandmarkChrome(document);
 
   const candidates: GridCandidate[] = [];
   for (const container of document.querySelectorAll('*')) {
@@ -255,12 +195,7 @@ function detectAuto(document: Document, minRows: number): GridDetectionResult {
       winner = candidate;
     }
   }
-  return buildResult(
-    winner.rows,
-    winner.rowTag,
-    winner.containerSelector,
-    minRows,
-  );
+  return buildResult(winner.rows, winner.rowTag, winner.containerSelector);
 }
 
 // Detect a CSS-grid/div "table" — the div equivalent of extract_tables. In

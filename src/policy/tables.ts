@@ -26,11 +26,18 @@ const TOOLTIP_CHROME_SELECTOR =
   '[aria-label], [data-tooltip], [data-toggle="tooltip"], .tooltip, .badge';
 
 function cellText(cell: Element): string {
+  const text = cell.textContent.replace(/\s+/g, ' ').trim();
+  if (text === '') {
+    return '';
+  }
   const clone = cell.cloneNode(true) as Element;
   clone.querySelectorAll(TOOLTIP_CHROME_SELECTOR).forEach(el => {
     el.remove();
   });
-  return clone.textContent.replace(/\s+/g, ' ').trim();
+  const stripped = clone.textContent.replace(/\s+/g, ' ').trim();
+  // Chrome-stripping must never empty a cell: a badge/aria element that holds a
+  // cell's only text is data, not chrome (e.g. <td><span class="badge">5</span>).
+  return stripped !== '' ? stripped : text;
 }
 
 function collectRows(table: Element): readonly Element[] {
@@ -53,67 +60,11 @@ function cellsOf(tr: Element): readonly Element[] {
   return Array.from(tr.children).filter(child => CELL_TAGS.has(child.tagName));
 }
 
+// Text projection of buildCellGrid: origin cells → cellText, span/pad slots → ''.
 export function parseTableMatrix(table: Element): string[][] {
-  const rows = collectRows(table);
-  if (rows.length === 0) {
-    return [];
-  }
-
-  const grid: string[][] = [];
-  // Sparse occupancy: occupied[row][col] = true. Grows as rows are appended.
-  const occupied: boolean[][] = [];
-  let maxCols = 0;
-
-  for (let r = 0; r < rows.length; r++) {
-    while (grid.length <= r) {
-      grid.push([]);
-      occupied.push([]);
-    }
-    const rowCells = grid[r];
-    const rowOccupied = occupied[r];
-
-    let col = 0;
-    for (const cell of cellsOf(rows[r])) {
-      while (rowOccupied[col]) {
-        col++;
-      }
-      const rowspan = spanOf(cell, 'rowspan');
-      const colspan = spanOf(cell, 'colspan');
-      // Place text only at the origin; spanned cells stay empty but reserved.
-      rowCells[col] = cellText(cell);
-      rowOccupied[col] = true;
-      for (let dr = 0; dr < rowspan; dr++) {
-        for (let dc = 0; dc < colspan; dc++) {
-          if (dr === 0 && dc === 0) {
-            continue;
-          }
-          const rr = r + dr;
-          while (grid.length <= rr) {
-            grid.push([]);
-            occupied.push([]);
-          }
-          const occ = occupied[rr];
-          while (occ.length <= col + dc) {
-            occ.push(false);
-            grid[rr].push('');
-          }
-          occ[col + dc] = true;
-        }
-      }
-      col += colspan;
-      if (col > maxCols) {
-        maxCols = col;
-      }
-    }
-  }
-
-  // Normalize to dense rectangular: pad short rows with ''.
-  const dense: string[][] = [];
-  for (const row of grid) {
-    const padded = Array.from({ length: maxCols }, (_, i) => row[i] ?? '');
-    dense.push(padded);
-  }
-  return dense;
+  return buildCellGrid(table).map(row =>
+    row.map(cell => (cell === null ? '' : cellText(cell))),
+  );
 }
 
 function escapeGfmCell(text: string): string {
@@ -152,9 +103,10 @@ function headerKeys(header: readonly string[]): string[] {
   return header.map((cell, i) => (cell === '' ? `column_${i}` : cell));
 }
 
-// Parallel to parseTableMatrix but tracks the originating cell element at each
-// grid position so header-key resolution can read td/th attributes the text
-// matrix discards. `null` at positions filled by a span (no origin cell).
+// Tracks the originating cell element at each grid position after resolving
+// rowspan/colspan, so resolveHeaderKeys can read td/th attributes the text
+// matrix discards. parseTableMatrix is the text projection of this grid; `null`
+// marks positions filled by a span (no origin cell).
 function buildCellGrid(table: Element): (Element | null)[][] {
   const rows = collectRows(table);
   if (rows.length === 0) {

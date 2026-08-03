@@ -184,6 +184,20 @@ describe('policy.tables parseTableMatrix', () => {
     // The clone-based strip must not have touched the original cell.
     expect(cell.querySelectorAll('.badge')).toHaveLength(1);
   });
+
+  it('keeps a value whose only text lives inside a badge or aria element', () => {
+    // A badge/aria node that is the cell's sole text is data, not chrome —
+    // stripping it would empty the cell, so the guard falls back to the raw text.
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr>' +
+          '<td><span class="badge">5</span></td>' +
+          '<td><span aria-label="count">12</span></td>' +
+          '</tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['5', '12']]);
+  });
 });
 
 describe('policy.tables renderTableCsv', () => {

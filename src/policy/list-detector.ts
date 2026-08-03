@@ -1,5 +1,11 @@
 import { isElement } from '../pipeline/dom.js';
 import { absolutize } from '../pipeline/urls.js';
+import {
+  CONTAINER_TAGS,
+  describeSelector,
+  shapeKey,
+  stripLandmarkChrome,
+} from './sibling-scan.js';
 
 export interface ListItem {
   readonly score: number;
@@ -34,31 +40,6 @@ const HIGH_CONF_ITEMS = 6;
 const HIGH_CONF_AVG_SCORE = 30;
 
 const MAX_SNIPPET_CHARS = 200;
-
-// Direct children are scanned only at these container levels. <tbody> covers
-// HN's <table>-based layout; the rest cover semantic (<main>/<article>) and
-// generic (<div>/<section>) list wrappers. <table> is included for HTML that
-// skips <tbody>; jsdom synthesizes one anyway, so this is mostly defensive.
-const CONTAINER_TAGS = new Set([
-  'ARTICLE',
-  'DIV',
-  'MAIN',
-  'OL',
-  'SECTION',
-  'TABLE',
-  'TBODY',
-  'UL',
-]);
-
-// Subtrees that never carry a page's primary item list. Stripping them is the
-// false-positive guard: without it, an article's <nav> menu (3-6 short <li><a>
-// items) would look identical to a feed and the detector would mis-fire on
-// every article with a nav. List pages put their items in <main> or a top-level
-// <table>, never inside chrome.
-const CHROME_SELECTOR =
-  'nav, header, footer, aside, [role="navigation"], [role="banner"], ' +
-  '[role="contentinfo"], [role="complementary"], [role="search"], ' +
-  '[role="menu"], [role="menubar"]';
 
 // href schemes that don't point at a list target. Excluding them keeps mailto:
 // /tel:/javascript:/ anchors from satisfying the "every item has a link" bar.
@@ -95,36 +76,6 @@ function navigationAnchors(child: Element): HTMLAnchorElement[] {
     anchors.push(anchor);
   }
   return anchors;
-}
-
-// Composite of tag + class signature so HN's mixed siblings — <tr class="athing">
-// (story title row) and classless <tr> (subtext row) — split into separate
-// candidate groups; the title-bearing group then wins on score instead of
-// producing half-junk items from the subtext rows.
-function shapeKey(el: Element): string {
-  const raw = el.getAttribute('class');
-  if (!raw) {
-    return el.tagName;
-  }
-  const normalized = raw.trim().split(/\s+/).sort().join(' ');
-  return normalized ? `${el.tagName}|${normalized}` : el.tagName;
-}
-
-function describeSelector(el: Element): string {
-  const parts = [el.tagName.toLowerCase()];
-  const id = el.getAttribute('id');
-  if (id) {
-    parts.push(`#${id}`);
-  }
-  const cls = el.getAttribute('class');
-  if (cls) {
-    for (const token of cls.trim().split(/\s+/)) {
-      if (token) {
-        parts.push(`.${token}`);
-      }
-    }
-  }
-  return parts.join('');
 }
 
 function pickPrimaryAnchor(
@@ -330,12 +281,7 @@ export function detectList(
   document: Document,
   baseUrl?: string,
 ): ListDetectionResult {
-  for (const el of document.querySelectorAll(CHROME_SELECTOR)) {
-    el.remove();
-  }
-  for (const el of document.querySelectorAll('script, style, template')) {
-    el.remove();
-  }
+  stripLandmarkChrome(document);
 
   const candidates = collectCandidates(document, baseUrl);
   if (candidates.length === 0) {
