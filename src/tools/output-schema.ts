@@ -523,6 +523,95 @@ export type ExtractTablesStructuredContent = z.infer<
   typeof extractTablesOutput
 >;
 
+export const gridEntrySchema = z
+  .object({
+    rows: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Row count of the detected grid (after ragged-row padding).'),
+    cols: z
+      .number()
+      .int()
+      .min(0)
+      .describe(
+        'Column count of the detected grid (max cell width across rows).',
+      ),
+    markdown: z
+      .string()
+      .describe('The grid rendered in the requested format (gfm/csv/json).'),
+  })
+  .describe('One detected grid with its dimensions and rendered form.');
+
+export const extractGridOutputShape = {
+  schemaVersion: z
+    .literal(1)
+    .describe(
+      'Structured-content schema version. Bumps only on breaking shape changes to this object.',
+    ),
+  content: z
+    .string()
+    .describe(
+      'The grid rendered in the requested format, or "(no repeating grid found)" when no grid is detected.',
+    ),
+  grid: gridEntrySchema.describe(
+    'The detected grid (dimensions + rendered markdown). Rows/cols are 0 and markdown is empty when nothing is detected.',
+  ),
+  diagnostics: z
+    .object({
+      confidence: z
+        .enum(['high', 'low', 'medium'])
+        .describe(
+          '`high` when ≥6 rows, `medium` when ≥3 (minRows), `low` otherwise. `low` for non-grid pages.',
+        ),
+      containerSelector: z
+        .string()
+        .describe(
+          'CSS-ish hint (tag#id.class) of the winning container, or the rowSelector in selector mode. Empty when not detected.',
+        ),
+      detected: z
+        .boolean()
+        .describe(
+          'True when a repeating grid was found (≥3 same-shape sibling rows each with ≥2 direct element-children, outside nav/header/footer/aside).',
+        ),
+      rowCount: z
+        .number()
+        .int()
+        .describe('Number of rows emitted. 0 when not detected.'),
+      colCount: z
+        .number()
+        .int()
+        .describe(
+          'Number of columns (max cell width across rows). 0 when not detected.',
+        ),
+      rowTag: z
+        .string()
+        .describe(
+          'Uppercase DOM tag name of the repeating row container (e.g. "DIV", "TR", "LI"). Empty when not detected.',
+        ),
+      note: z
+        .string()
+        .describe(
+          'Short human-readable status: the detection reason when detected, or the rejection reason when not.',
+        ),
+    })
+    .describe('Grid-detection telemetry describing the winning candidate.'),
+  metadata: z
+    .object({
+      baseUrl: z
+        .string()
+        .optional()
+        .describe('The baseUrl passed in (origin context, never fetched).'),
+      format: tableFormatSchema.describe('The requested render format.'),
+      detected: z.boolean().describe('Mirrors diagnostics.detected.'),
+    })
+    .describe('Extract-grid document metadata.'),
+} as const;
+
+export const extractGridOutput = z.object(extractGridOutputShape);
+
+export type ExtractGridStructuredContent = z.infer<typeof extractGridOutput>;
+
 const listItemSchema = z
   .object({
     score: z

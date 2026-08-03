@@ -70,7 +70,7 @@ Add to your MCP client config (Claude Code, Claude Desktop, etc.):
 
 ## Tools
 
-All ten always-on tools return MCP **structured content** (`schemaVersion` plus a tool-specific payload of `metadata` / `diagnostics` / `items` / …) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. A sampling-capable host also sees an eleventh — `summarize` — registered after the `initialize` handshake when the client advertises the MCP `sampling` capability. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
+All eleven always-on tools return MCP **structured content** (`schemaVersion` plus a tool-specific payload of `metadata` / `diagnostics` / `items` / …) validated by a zod `outputSchema`, plus a human/LLM-readable payload in `content[0].text`. A sampling-capable host also sees a twelfth — `summarize` — registered after the `initialize` handshake when the client advertises the MCP `sampling` capability. Nothing throws across the wire — failures become `{ "isError": true }` results. Every input and output field carries a description in the tool's JSON schema, so clients can introspect each option without reading these docs.
 
 **`localPath` — the only HTML input.** Every HTML-input tool takes a `localPath` pointing at a file holding the already-rendered (post-JavaScript) HTML. The server reads the bytes itself, so the page never enters the model context — the model emits only a path string. The motivating hop is chrome-devtools → readability: `evaluate_script` writes `document.documentElement.outerHTML` to a file via its `filePath` arg, then the tool reads that path. Resolved relative to the server process working directory; prefer absolute paths so the chrome-devtools capture and this read agree on location.
 
@@ -136,6 +136,21 @@ Extracts **every** `<table>` on the page — a `querySelectorAll('table')` walk 
 | `selectors` | — | Same `include`/`exclude` shape as `extract`. Scope the walk: `include:"#shareholding"` returns only tables inside that subtree; `exclude:[".ads"]` drops matches anywhere on the page. |
 
 Output shape: `structuredContent.tables = [{index, rows, cols, markdown}]` — one entry per non-empty table in document order, where `rows`/`cols` are the matrix dimensions after rowspan/colspan resolution and `markdown` is the table rendered in the requested format. All entries' `markdown` are joined by blank lines into `content[0].text` (`"(no tables found)"` when the page has none). `metadata = {baseUrl?, format, tableCount}`. Empty `<table>` elements (no rows) are skipped, so `index` is contiguous over the emitted tables. Nested `<table>`s are emitted as their own entries in document order (the matrix walk excludes nested tables from a parent's matrix; `querySelectorAll` then returns the nested table separately).
+
+### `extract_grid` — CSS-grid / div tables (the div equivalent of extract_tables)
+
+Detects and extracts a **CSS-grid / div "table"** — for SPA pages that render data into repeating `<div>` rows instead of `<table>` (analyst-estimate tables, financial summaries, comparison grids) where `extract_tables` returns nothing. Two modes: **auto-detect** finds the container whose direct children form the largest same-shape sibling group of **≥3** rows (each row a set of **≥2** direct element-children, outside `nav`/`header`/`footer`/`aside`); **selector mode** takes explicit `rowSelector` + `cellSelector` (cells scoped to each row subtree). The detected matrix is rendered through the **same** gfm/csv/json matrix renderer as `extract_tables`. Runs **no** Readability, Turndown, sanitization, or `normalizeDocument` chrome-stripping in selector mode (auto mode strips chrome internally so an article's nav doesn't look like a 4-row grid).
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `localPath` *(required)* | — | Path to a file holding the rendered HTML (post-JS), e.g. `document.documentElement.outerHTML` written to disk by a browser/devtools capture. The server reads it so the page bytes never enter the model context. |
+| `baseUrl` | — | Optional origin. **Never fetched**; carried through to `metadata.baseUrl`. |
+| `format` | `gfm` | `gfm` (default, native GFM table with a delimiter row) \| `csv` (RFC-4180-ish, quoted fields) \| `json` (array of row objects keyed by the header row — first row used as keys when non-empty, else `column_N`). |
+| `selectors` | — | Same `include`/`exclude` shape as `extract`. Scope auto-detection: `include:"#estimates"` narrows the scan to that subtree. |
+| `rowSelector` | — | CSS selector for repeating row containers. When set **with** `cellSelector`, selector mode is used (no auto-detection). Example: `'div[class*="estimate-row"]'`. |
+| `cellSelector` | — | CSS selector for cells within each row (scoped to the row subtree). Required together with `rowSelector` — both-or-neither (setting only one is rejected). Example: `'div[class*="cell"]'`. |
+
+Output shape: `structuredContent = {schemaVersion, content, grid, diagnostics, metadata}`. `grid = {rows, cols, markdown}` — the single detected grid (`rows`/`cols` 0 and `markdown` empty when nothing is detected), where `markdown` is the grid rendered in the requested format (ragged rows are padded to a dense rectangular matrix). `content[0].text` is the grid markdown, or `"(no repeating grid found)"`. `diagnostics = {detected, rowCount, colCount, containerSelector, rowTag, confidence, note}`: `detected:false` means no grid structure was found; `containerSelector`/`rowTag` name the winning cluster (or `rowSelector` in selector mode); `confidence` is `high` when ≥6 rows, `medium` when ≥3, `low` otherwise. `metadata = {baseUrl?, format, detected}`.
 
 ### `extract_list` — feed/index/search pages
 

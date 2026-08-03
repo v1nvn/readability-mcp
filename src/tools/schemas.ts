@@ -364,7 +364,55 @@ export const extractListInputShape = {
 
 export const extractListInputSchema = z.object(extractListInputShape);
 
+export const extractGridInputShape = {
+  localPath: localPathField,
+  baseUrl: z
+    .url()
+    .describe(
+      'Base URL, carried through to metadata.baseUrl. NEVER fetched — origin context only.',
+    )
+    .optional(),
+  format: tableFormatSchema
+    .describe(
+      'Output format for the grid: "gfm" (default — native GFM table with a delimiter row), "csv" (RFC-4180-ish, quoted fields), or "json" (array of row objects keyed by the header row).',
+    )
+    .default('gfm'),
+  selectors: selectorsSchema,
+  rowSelector: z
+    .string()
+    .describe(
+      'CSS selector for repeating row containers. When set WITH cellSelector, selector mode is used (no auto-detection). Example: \'[class*="estimate-row"]\'.',
+    )
+    .optional(),
+  cellSelector: z
+    .string()
+    .describe(
+      'CSS selector for cells within each row (scoped to the row subtree). Required together with rowSelector for selector mode. Example: \'[class*="cell"]\'.',
+    )
+    .optional(),
+} as const;
+
+// rowSelector and cellSelector are both-or-neither: both set routes through
+// selector mode, neither set routes through auto-detection. Exactly one set is
+// ambiguous (which mode?), so it is rejected up front rather than silently
+// falling back.
+export const extractGridInputSchema = z
+  .object(extractGridInputShape)
+  .superRefine((value, ctx) => {
+    const hasRow = value.rowSelector !== undefined;
+    const hasCell = value.cellSelector !== undefined;
+    if (hasRow !== hasCell) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Provide both `rowSelector` and `cellSelector` for selector mode, or neither for auto-detection (setting only one is invalid).',
+        path: ['rowSelector'],
+      });
+    }
+  });
+
 export type ChunkTextInput = z.infer<typeof chunkTextInputSchema>;
+export type ExtractGridInput = z.infer<typeof extractGridInputSchema>;
 export type ExtractInput = z.infer<typeof extractInputSchema>;
 export type ExtractLinksInput = z.infer<typeof extractLinksInputSchema>;
 export type ExtractListInput = z.infer<typeof extractListInputSchema>;
@@ -391,3 +439,4 @@ export type ExtractListFromHtmlInput = FromHtmlInput<ExtractListInput>;
 export type ExtractMetadataFromHtmlInput = FromHtmlInput<ExtractMetadataInput>;
 export type ExtractSectionFromHtmlInput = FromHtmlInput<ExtractSectionInput>;
 export type ExtractTablesFromHtmlInput = FromHtmlInput<ExtractTablesInput>;
+export type ExtractGridFromHtmlInput = FromHtmlInput<ExtractGridInput>;

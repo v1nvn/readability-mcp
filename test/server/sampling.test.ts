@@ -73,12 +73,13 @@ describe('summarize tool capability gating', () => {
     const { client, close } = await connect({ sampling: true });
     const names = await listToolNames(client);
     expect(names).toContain('summarize');
-    // The ten always-on tools still appear alongside it.
+    // The eleven always-on tools still appear alongside it.
     expect(names).toEqual(
       expect.arrayContaining([
         'chunk_text',
         'explain',
         'extract',
+        'extract_grid',
         'extract_links',
         'extract_list',
         'extract_metadata',
@@ -89,7 +90,7 @@ describe('summarize tool capability gating', () => {
         'summarize',
       ]),
     );
-    expect(names).toHaveLength(11);
+    expect(names).toHaveLength(12);
     await close();
   });
 
@@ -97,7 +98,7 @@ describe('summarize tool capability gating', () => {
     const { client, close } = await connect({ sampling: false });
     const names = await listToolNames(client);
     expect(names).not.toContain('summarize');
-    expect(names).toHaveLength(10);
+    expect(names).toHaveLength(11);
     await close();
   });
 
