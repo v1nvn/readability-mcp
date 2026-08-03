@@ -19,8 +19,18 @@ function spanOf(cell: Element, attr: 'colspan' | 'rowspan'): number {
   return parsed;
 }
 
+// Tooltip/badge/aria wrappers carry chrome, not data — drop them so a label
+// cell serializes as "Market Capitalization" rather than concatenating every
+// descendant ("Market CapitalizationMarket LeaderUnavailable...").
+const TOOLTIP_CHROME_SELECTOR =
+  '[aria-label], [data-tooltip], [data-toggle="tooltip"], .tooltip, .badge';
+
 function cellText(cell: Element): string {
-  return cell.textContent.replace(/\s+/g, ' ').trim();
+  const clone = cell.cloneNode(true) as Element;
+  clone.querySelectorAll(TOOLTIP_CHROME_SELECTOR).forEach(el => {
+    el.remove();
+  });
+  return clone.textContent.replace(/\s+/g, ' ').trim();
 }
 
 function collectRows(table: Element): readonly Element[] {

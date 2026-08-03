@@ -123,6 +123,66 @@ describe('policy.tables parseTableMatrix', () => {
     );
     expect(matrix).toEqual([['hello world']]);
   });
+
+  it('strips badge and aria-label chrome from a label cell', () => {
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr>' +
+          '<td><span>Market Capitalization</span>' +
+          '<span class="badge">Market Leader</span>' +
+          '<span aria-label="x">Unavailable</span></td>' +
+          '<td>1.2T</td>' +
+          '</tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['Market Capitalization', '1.2T']]);
+  });
+
+  it('strips data-tooltip and .tooltip chrome', () => {
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr>' +
+          '<td><span>P/E Ratio</span>' +
+          '<span data-tooltip="help">i</span>' +
+          '<span class="tooltip">extra</span></td>' +
+          '<td>24.5</td>' +
+          '</tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['P/E Ratio', '24.5']]);
+  });
+
+  it('leaves a plain cell with no chrome unchanged', () => {
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr><td>Plain Value</td><td>42</td></tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['Plain Value', '42']]);
+  });
+
+  it('does not over-strip cells whose real text contains punctuation', () => {
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr><td>+15.3%</td><td>(N/A)</td></tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['+15.3%', '(N/A)']]);
+  });
+
+  it('does not mutate the live DOM when stripping chrome', () => {
+    const { document } = buildDocument(
+      '<html><body><table><tbody><tr>' +
+        '<td><span>Label</span><span class="badge">B</span></td>' +
+        '</tr></tbody></table></body></html>',
+    );
+    const el = document.querySelector('table')!;
+    const cell = el.querySelector('td')!;
+    expect(cell.querySelectorAll('.badge')).toHaveLength(1);
+    parseTableMatrix(el);
+    // The clone-based strip must not have touched the original cell.
+    expect(cell.querySelectorAll('.badge')).toHaveLength(1);
+  });
 });
 
 describe('policy.tables renderTableCsv', () => {
