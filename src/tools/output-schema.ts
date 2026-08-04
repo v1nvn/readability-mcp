@@ -562,7 +562,7 @@ export const extractGridOutputShape = {
       confidence: z
         .enum(['high', 'low', 'medium'])
         .describe(
-          '`high` when ≥6 rows, `medium` when ≥3 (minRows), `low` otherwise. `low` for non-grid pages.',
+          '`high` when ≥6 detected data rows, `medium` when ≥3 (minRows), `low` otherwise. Counts the detected cluster only — a recovered header row is inference and does not raise it. `low` for non-grid pages.',
         ),
       containerSelector: z
         .string()
@@ -577,7 +577,9 @@ export const extractGridOutputShape = {
       rowCount: z
         .number()
         .int()
-        .describe('Number of rows emitted. 0 when not detected.'),
+        .describe(
+          'Number of rows emitted, including any recovered header row. 0 when not detected.',
+        ),
       colCount: z
         .number()
         .int()

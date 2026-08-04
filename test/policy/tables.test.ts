@@ -198,6 +198,35 @@ describe('policy.tables parseTableMatrix', () => {
     );
     expect(matrix).toEqual([['5', '12']]);
   });
+
+  it('keeps primary text nested inside a tooltip-wrapping span', () => {
+    // The visible word is the cell's entire content but sits inside the span
+    // that carries data-tooltip; the never-empty guard restores it.
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr>' +
+          '<td><span class="text-capitalize" data-tooltip="tooltip" data-original-title="promoters">' +
+          '<span class="text-capitalize">promoters</span></span></td>' +
+          '</tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['promoters']]);
+  });
+
+  it('surfaces an icon-only link cell as its href', () => {
+    // No visible text — the URL lives in href and is the cell's only data.
+    const matrix = parseTableMatrix(
+      table(
+        '<table><tbody><tr>' +
+          '<td><a target="_blank" href="https://www.bseindia.com/r.pdf">' +
+          '<span data-tooltip="tooltip" data-original-title="View Report">' +
+          '<svg aria-hidden="true" viewBox="0 0 16 16"><path d="M0 0"/></svg>' +
+          '</span></a></td>' +
+          '</tr></tbody></table>',
+      ),
+    );
+    expect(matrix).toEqual([['https://www.bseindia.com/r.pdf']]);
+  });
 });
 
 describe('policy.tables renderTableCsv', () => {

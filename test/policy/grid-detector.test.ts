@@ -113,6 +113,150 @@ describe('detectGrid: auto-detect mode', () => {
     expect(result.rowCount).toBe(5);
     expect(result.containerSelector).toBe('div.big');
   });
+
+  it('recovers a header row split off by an extra class token', () => {
+    // The header carries an extra "est-header" class, so shapeKey splits it into
+    // its own 1-member group (below minRows). Without header recovery it would
+    // be dropped and the first data row mis-read as the header (rowCount 4).
+    const html =
+      '<div class="estimates-table">' +
+      '<div class="est-row est-header">' +
+      '<div class="est-cell metric">Metric</div>' +
+      '<div class="est-cell">FY26E</div><div class="est-cell">FY27E</div><div class="est-cell">FY28E</div>' +
+      '</div>' +
+      '<div class="est-row"><div class="est-cell metric">Revenue</div><div class="est-cell">8120</div><div class="est-cell">9540</div><div class="est-cell">11210</div></div>' +
+      '<div class="est-row"><div class="est-cell metric">EBITDA</div><div class="est-cell">2410</div><div class="est-cell">2840</div><div class="est-cell">3210</div></div>' +
+      '<div class="est-row"><div class="est-cell metric">EPS</div><div class="est-cell">120</div><div class="est-cell">140</div><div class="est-cell">160</div></div>' +
+      '<div class="est-row"><div class="est-cell metric">P/E</div><div class="est-cell">30</div><div class="est-cell">28</div><div class="est-cell">26</div></div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rowCount).toBe(5);
+    expect(result.colCount).toBe(4);
+    expect(result.rows.map(r => [...r.cells])).toEqual([
+      ['Metric', 'FY26E', 'FY27E', 'FY28E'],
+      ['Revenue', '8120', '9540', '11210'],
+      ['EBITDA', '2410', '2840', '3210'],
+      ['EPS', '120', '140', '160'],
+      ['P/E', '30', '28', '26'],
+    ]);
+  });
+
+  it('recovers a header row signalled by ARIA columnheader roles', () => {
+    const html =
+      '<div class="grid">' +
+      '<div role="row"><div role="columnheader">A</div><div role="columnheader">B</div></div>' +
+      '<div class="row"><div>1</div><div>2</div></div>' +
+      '<div class="row"><div>3</div><div>4</div></div>' +
+      '<div class="row"><div>5</div><div>6</div></div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rowCount).toBe(4);
+    expect([...result.rows[0]!.cells]).toEqual(['A', 'B']);
+  });
+
+  it('does not promote a non-header sibling to the header slot', () => {
+    // A filter row with the same column shape but no header signal must not be
+    // grabbed as a header; it simply is not part of the data cluster.
+    const html =
+      '<div class="grid">' +
+      '<div class="filter"><input/><input/></div>' +
+      '<div class="row"><div>a</div><div>b</div></div>' +
+      '<div class="row"><div>c</div><div>d</div></div>' +
+      '<div class="row"><div>e</div><div>f</div></div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rowCount).toBe(3);
+    expect([...result.rows[0]!.cells]).toEqual(['a', 'b']);
+  });
+
+  it('does not grab chrome whose class merely contains "header"', () => {
+    // A control bar labelled "card-header" sits above the grid with the same
+    // column count. It shares no class token with the data rows, so it is not a
+    // header for this cluster and must not be promoted — substring matching on
+    // "header" would wrongly grab it and mislabel every column.
+    const html =
+      '<div class="grid">' +
+      '<div class="card-header"><div>x</div><div>y</div></div>' +
+      '<div class="row"><div>a</div><div>b</div></div>' +
+      '<div class="row"><div>c</div><div>d</div></div>' +
+      '<div class="row"><div>e</div><div>f</div></div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rowCount).toBe(3);
+    expect([...result.rows[0]!.cells]).toEqual(['a', 'b']);
+  });
+
+  it('recovers a header that shares the data row class plus a token', () => {
+    // "row head" carries the data rows' "row" token plus "head" (no "header"
+    // substring at all) — kinship, not spelling, is what identifies it.
+    const html =
+      '<div class="grid">' +
+      '<div class="row head"><div>M</div><div>N</div></div>' +
+      '<div class="row"><div>1</div><div>2</div></div>' +
+      '<div class="row"><div>3</div><div>4</div></div>' +
+      '<div class="row"><div>5</div><div>6</div></div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rowCount).toBe(4);
+    expect([...result.rows[0]!.cells]).toEqual(['M', 'N']);
+  });
+
+  it('does not let a recovered header inflate confidence', () => {
+    // 5 data rows + 1 recovered header = 6 emitted, but the evidence is 5 data
+    // rows, so confidence stays medium (HIGH_CONF_ROWS is 6) even though
+    // rowCount counts the header.
+    const html =
+      '<div class="grid">' +
+      '<div class="row head"><div>H</div><div>H2</div></div>' +
+      '<div class="row"><div>1</div><div>2</div></div>' +
+      '<div class="row"><div>3</div><div>4</div></div>' +
+      '<div class="row"><div>5</div><div>6</div></div>' +
+      '<div class="row"><div>7</div><div>8</div></div>' +
+      '<div class="row"><div>9</div><div>10</div></div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rowCount).toBe(6);
+    expect(result.confidence).toBe('medium');
+    expect(result.note).toMatch(/5 .*data rows plus 1 header/);
+  });
+
+  it('reports high confidence only at six or more data rows', () => {
+    const rows = Array.from(
+      { length: 6 },
+      (_, i) => `<div class="row"><div>a${i}</div><div>b${i}</div></div>`,
+    ).join('');
+    const result = detectGrid(doc(`<div class="grid">${rows}</div>`));
+    expect(result.confidence).toBe('high');
+    expect(result.rowCount).toBe(6);
+  });
+
+  it('surfaces an icon-only link cell as its href (shared cell resolver)', () => {
+    const html =
+      '<div class="grid">' +
+      '<div class="row"><div>Name</div>' +
+      '<a href="https://example.com/r.pdf"><svg aria-hidden="true"><path d="M0 0"/></svg></a>' +
+      '</div>' +
+      '<div class="row"><div>Other</div>' +
+      '<a href="https://example.com/s.pdf"><svg aria-hidden="true"><path d="M0 0"/></svg></a>' +
+      '</div>' +
+      '<div class="row"><div>Last</div>' +
+      '<a href="https://example.com/t.pdf"><svg aria-hidden="true"><path d="M0 0"/></svg></a>' +
+      '</div>' +
+      '</div>';
+    const result = detectGrid(doc(html));
+    expect(result.detected).toBe(true);
+    expect(result.rows.map(r => [...r.cells])).toEqual([
+      ['Name', 'https://example.com/r.pdf'],
+      ['Other', 'https://example.com/s.pdf'],
+      ['Last', 'https://example.com/t.pdf'],
+    ]);
+  });
 });
 
 describe('detectGrid: selector mode', () => {

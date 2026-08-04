@@ -1,3 +1,5 @@
+import { resolveCellText } from './cell-text.js';
+
 export type TableFormat = 'csv' | 'gfm' | 'json';
 
 // `<thead>`/`<tbody>`/`<tfoot>` group `<tr>` rows; a `<table>` may also hold `<tr>`
@@ -17,27 +19,6 @@ function spanOf(cell: Element, attr: 'colspan' | 'rowspan'): number {
     return 1;
   }
   return parsed;
-}
-
-// Tooltip/badge/aria wrappers carry chrome, not data — drop them so a label
-// cell serializes as "Market Capitalization" rather than concatenating every
-// descendant ("Market CapitalizationMarket LeaderUnavailable...").
-const TOOLTIP_CHROME_SELECTOR =
-  '[aria-label], [data-tooltip], [data-toggle="tooltip"], .tooltip, .badge';
-
-function cellText(cell: Element): string {
-  const text = cell.textContent.replace(/\s+/g, ' ').trim();
-  if (text === '') {
-    return '';
-  }
-  const clone = cell.cloneNode(true) as Element;
-  clone.querySelectorAll(TOOLTIP_CHROME_SELECTOR).forEach(el => {
-    el.remove();
-  });
-  const stripped = clone.textContent.replace(/\s+/g, ' ').trim();
-  // Chrome-stripping must never empty a cell: a badge/aria element that holds a
-  // cell's only text is data, not chrome (e.g. <td><span class="badge">5</span>).
-  return stripped !== '' ? stripped : text;
 }
 
 function collectRows(table: Element): readonly Element[] {
@@ -60,10 +41,10 @@ function cellsOf(tr: Element): readonly Element[] {
   return Array.from(tr.children).filter(child => CELL_TAGS.has(child.tagName));
 }
 
-// Text projection of buildCellGrid: origin cells → cellText, span/pad slots → ''.
+// Text projection of buildCellGrid: origin cells → resolveCellText, span/pad slots → ''.
 export function parseTableMatrix(table: Element): string[][] {
   return buildCellGrid(table).map(row =>
-    row.map(cell => (cell === null ? '' : cellText(cell))),
+    row.map(cell => (cell === null ? '' : resolveCellText(cell))),
   );
 }
 
@@ -210,7 +191,7 @@ export function resolveHeaderKeys(
     let col = 0;
     for (const cell of cellsOf(rows[0])) {
       const colspan = spanOf(cell, 'colspan');
-      const text = cellText(cell);
+      const text = resolveCellText(cell);
       if (colspan > 1 && text) {
         const slug = slugify(text);
         const kids: number[] = [];
